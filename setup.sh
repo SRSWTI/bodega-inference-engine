@@ -80,12 +80,20 @@ fi
 if [ ${#MODELS[@]} -eq 0 ]; then
     echo -e "\n${GREEN}Setup complete!${NC}"
     echo ""
-    read -p "Would you like to run the Continuous Batching Configuration Sweep now? [y/N]: " run_sweep
-    if [[ "$run_sweep" == "y" || "$run_sweep" == "Y" ]]; then
-        echo -e "\n${BLUE}Running sweep_cb_configs.py...${NC}"
+    echo "Would you like to run a benchmark now?"
+    echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
+    echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
+    echo "3) No, exit setup"
+    read -p "Select an option [1-3]: " run_bench
+    
+    if [[ "$run_bench" == "1" ]]; then
+        echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
+        python benchmark_http_concurrency.py
+    elif [[ "$run_bench" == "2" ]]; then
+        echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
         python sweep_cb_configs.py
     else
-        echo -e "\nYou can run the tests later with: ${YELLOW}python sweep_cb_configs.py${NC}"
+        echo -e "\nYou can run the tests anytime with: ${YELLOW}python benchmark_http_concurrency.py${NC} or ${YELLOW}python sweep_cb_configs.py${NC}"
     fi
     exit 0
 fi
@@ -134,13 +142,25 @@ done
 echo -e "\n${GREEN}=== Setup Complete! ===${NC}"
 echo ""
 
-read -p "Would you like to run the Continuous Batching Configuration Sweep now to benchmark performance? [y/N]: " run_sweep
-if [[ "$run_sweep" == "y" || "$run_sweep" == "Y" ]]; then
+echo "Would you like to run a benchmark now to test performance?"
+echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
+echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
+echo "3) No, just let me use the Interactive Chat Shell!"
+echo "4) Skip"
+read -p "Select an option [1-4]: " run_bench
+
+if [[ "$run_bench" == "1" ]]; then
+    echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
+    python benchmark_http_concurrency.py
+elif [[ "$run_bench" == "2" ]]; then
     echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
     python sweep_cb_configs.py
+elif [[ "$run_bench" == "3" ]]; then
+    echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
+    python interactive_shell.py
 else
     echo -e "\nYou can test continuous batching and interact with models anytime by running:"
+    echo -e "  ${YELLOW}python benchmark_http_concurrency.py${NC}  (for basic load testing)"
     echo -e "  ${YELLOW}python sweep_cb_configs.py${NC}  (for config benchmarking)"
-    echo -e "  ${YELLOW}python benchmark_http_concurrency.py${NC}  (for load testing)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (for live chat and visuals)"
 fi

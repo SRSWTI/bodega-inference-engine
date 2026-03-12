@@ -1058,21 +1058,17 @@ Bodega's continuous batching engine maximizes throughput for multi-user workload
 
 #### How It Works
 
-To understand why continuous batching matters, you first need to understand why sequential processing is so wasteful.
+**The Continuous Batching Flow:**
+1. Request A arrives. The engine processes A's prompt and starts generating token 1.
+2. Request B arrives. Instead of waiting, the engine's Scheduler **injects B into the active batch instantly**.
+3. On the very next step, the GPU processes **both** A's token generation AND B's prompt processing simultaneously.
+4. The output is streamed back dynamically: token 2 for A, and token 1 for B.
+5. If Request A hits a stop word and finishes, it is **ejected from the batch immediately**, freeing up space for Request C, while Request B simply continues generating.
 
-**Sequential mode (default):** When request A is generating tokens, request B waits in the queue doing nothing. The GPU loads the full model weights, generates one token, and moves to the next. Because Apple Silicon is memory-bandwidth-bound (loading weights from unified memory dominates the cost), the GPU is severely underutilized for any single-stream generation — it spends most of its time waiting on the memory bus, not doing compute.
+**Why this is blazingly fast:**
+Because Apple Silicon is bottlenecked by memory bandwidth during text generation, fetching the model weights accounts for roughly 80% of the time. If you can fetch the weights *once* and use them to multiply against *four* different requests simultaneously, you get nearly 4x the throughput with almost zero latency penalty.
 
-**Continuous batching:** Instead of a queue, the engine runs a scheduler that manages an active batch of sequences. When request B arrives while request A is mid-generation, the scheduler injects B into the active batch immediately. On the next generation step, the GPU runs a single matrix multiply against a batch of `[A_token, B_token, ...]` instead of just `[A_token]`. The model weights are loaded from memory **once**, and the result feeds every sequence in the batch simultaneously.
-
-This is the key insight: Apple Silicon's memory bandwidth is the bottleneck. Once you're paying the cost of loading the weights, adding more sequences to the batch is nearly free — the same memory load amortized across more tokens. The result is near-linear throughput scaling with concurrency, up to the point where the batch size overflows the GPU's compute capacity.
-
-The flow for each engine step:
-
-1. **Scheduler runs** — assigns waiting sequences to the active batch, up to `cb_completion_batch_size`. Sequences that just arrived get their prompts pre-processed (prefill phase).
-2. **Chunked prefill** — if a new request has a massive prompt, it's split into `cb_chunked_prefill_tokens`-sized chunks and ingested one chunk per step, so long-prompt requests never freeze out active generation streams.
-3. **Batch generation step** — one forward pass through the model produces the next token for every active sequence simultaneously. All weights loaded once, all sequences served.
-4. **Output routing** — each token is streamed back to its respective HTTP response. Sequences that hit a stop condition are ejected from the batch immediately, freeing their slot for the next waiting request.
-5. **Prefix cache check** — before processing any new prompt, the engine checks if a matching KV-cache block already exists. If it does, that prefix is skipped entirely.
+This is called "continuous" because requests enter and exit the active GPU batch fluidly as they arrive and finish, without waiting for the whole batch to complete.
 
 #### Sequential vs. Continuous Batching
 
@@ -1087,7 +1083,7 @@ Benchmarked on the **blackbird-she-doesnt-refuse-21b** model:
 
 At concurrency 8, continuous batching delivers a **52x improvement in TTFT** — from 12.8 seconds to 247ms. Sequential throughput is flat because it's bottlenecked by single-request speed. CB throughput scales by saturating GPU parallelism across concurrent sequences.
 
-#### Configuration
+#### Configuration Examples
 
 ```bash
 curl -X POST http://localhost:44468/v1/admin/load-model \
@@ -1115,7 +1111,41 @@ models:
     cb_completion_batch_size: 32
 ```
 
-#### Tuning Parameters
+#### The Configuration Flags Explained
+
+To tune the batching engine, you have 5 main levers:
+
+##### 1. `--cb-max-num-seqs` (Default: 256)
+*What it is:* The absolute maximum number of sequences (requests) the engine is allowed to hold in its scheduler at one time.
+*How to tune:*
+- If this is too low, requests will be rejected under heavy load.
+- If it's too high, you might run out of KV-cache memory, causing MLX to swap to disk (very slow).
+- Set this based on your available RAM. 256 is safe for M1/M2/M3 Max chips (64GB) with 8B models.
+
+##### 2. `--cb-completion-batch-size` (Default: 32)
+*What it is:* The maximum number of sequences that can be actively *generating tokens* in the GPU simultaneously.
+*How to tune:*
+- Above ~32 concurrent generations, you start hitting computation limits on Apple Silicon GPUs, and individual Time-To-First-Token (TTFT) or Time-Per-Output-Token (TPOT) will rise.
+- 32 means MLX will multiply the weights against a matrix of size 32 on every generation step.
+
+##### 3. `--cb-prefill-batch-size` (Default: 8)
+*What it is:* When a burst of 50 new requests arrives, how many of them do we inject into the active batch on the *very next step*?
+*How to tune:*
+- Prefilling (processing the initial prompt) is computationally heavy. If you try to prefill 50 prompts at once, the GPU hangs for several seconds. If there are other requests currently generating tokens, those users will experience a massive stutter.
+- By capping this at 8, we ensure that new requests are digested in small bites. The active generation stream might pause for 100ms instead of 3000ms.
+
+##### 4. `--cb-chunked-prefill-tokens` (Default: 2048)
+*What it is:* What if a single user submits a massive 16,000-token prompt? That alone will block the GPU. Chunked prefill solves this by splitting that 16K prompt into 2048-token chunks.
+*How to tune:*
+- During step 1, it processes chunk 1 (0-2048) alongside the active token generations.
+- Step 2: chunk 2 (2048-4096) + active generations.
+- This entirely eliminates the "long prompt stutter" problem for concurrent users. Set to 0 to disable.
+
+##### 5. `--cb-enable-prefix-cache` (Default: True)
+*What it is:* Automatic prompt caching. If User A asks a question about a 10,000 token document, the engine calculates the KV-cache and stores it in memory blocks. If User B asks a different question about *the exact same document*, the engine recognizes the shared prefix and instantly reuses the 10,000 token cache, dropping TTFT from seconds to milliseconds.
+*How to tune:* Leave it on. It uses block-aware memory management to automatically evict the oldest prefixes when you hit MLX memory pressure.
+
+So here are the Tuning Parameters
 
 | Parameter | Recommended | What It Controls |
 |-----------|-------------|-----------------|
