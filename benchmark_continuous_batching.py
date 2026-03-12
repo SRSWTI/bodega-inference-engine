@@ -210,12 +210,18 @@ async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, mo
                 if mtype == "multimodal" and kwargs.get("continuous_batching"):
                     print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                           "      The engine currently falls back to sequential execution for vision models.", flush=True)
+                    choice = input("      Continue anyway? [y/N]: ")
+                    if choice.lower() not in ['y', 'yes']:
+                        return False
                 return True
             if resp.status_code in [200, 201]:
                 print(f"  (Loaded as {mtype})", flush=True)
                 if mtype == "multimodal" and kwargs.get("continuous_batching"):
                     print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                           "      The engine currently falls back to sequential execution for vision models.", flush=True)
+                    choice = input("      Continue anyway? [y/N]: ")
+                    if choice.lower() not in ['y', 'yes']:
+                        return False
                 return True
             if resp.status_code == 500:
                 # Try next type

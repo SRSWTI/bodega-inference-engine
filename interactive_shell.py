@@ -453,6 +453,8 @@ def live_continuous_batching():
                 if attempt_type == "multimodal":
                     console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                                   "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                    if not Confirm.ask("  Continue anyway?", default=True):
+                        return
                 load_ok = True
                 break
             elif r.status_code in [200, 201]:
@@ -460,6 +462,8 @@ def live_continuous_batching():
                 if attempt_type == "multimodal":
                     console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                                   "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                    if not Confirm.ask("  Continue anyway?", default=True):
+                        return
                 load_ok = True
                 break
             elif r.status_code == 500:

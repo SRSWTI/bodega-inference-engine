@@ -177,19 +177,89 @@ echo ""
 
 TARGET_MODEL=${MODELS[0]}
 
+# ─── Inspect the model that was just loaded ───────────────────────────────────
+echo -e "${YELLOW}Inspecting loaded model info...${NC}"
+
+eval "$(python3 -c "
+import json, httpx, sys
+
+BASE = 'http://localhost:44468'
+model_id = '$TARGET_MODEL'
+
+try:
+    r = httpx.get(f'{BASE}/v1/admin/loaded-models', timeout=5)
+    models = r.json().get('data', [])
+    m = next((x for x in models if x.get('id') == model_id), None)
+    if m is None and models:
+        m = models[-1]
+    if m:
+        mem   = m.get('memory', {})
+        mtype = m.get('type', m.get('model_type', 'lm'))
+        rss   = mem.get('rss_mb', 0)
+        metal = mem.get('metal_peak_mb', mem.get('metal_active_mb', 0))
+        total = mem.get('total_mb', 0)
+        pid   = m.get('pid', 'N/A')
+        print(f'MODEL_TYPE={mtype}')
+        print(f'RSS_MB={rss:.0f}')
+        print(f'METAL_MB={metal:.0f}')
+        print(f'TOTAL_MB={total:.0f}')
+        print(f'PID_VAL={pid}')
+    else:
+        print('MODEL_TYPE=lm'); print('RSS_MB=0'); print('METAL_MB=0'); print('TOTAL_MB=0'); print('PID_VAL=N/A')
+except Exception as e:
+    print('MODEL_TYPE=lm'); print('RSS_MB=0'); print('METAL_MB=0'); print('TOTAL_MB=0'); print('PID_VAL=N/A')
+")"
+
+echo ""
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "  ${GREEN}Model Loaded:${NC}   $TARGET_MODEL"
+echo -e "  ${GREEN}Adapter Type:${NC}   $MODEL_TYPE"
+echo -e "  ${GREEN}RAM (RSS):${NC}      ${RSS_MB} MB"
+echo -e "  ${GREEN}Metal Peak:${NC}     ${METAL_MB} MB  (Total: ${TOTAL_MB} MB)"
+echo -e "  ${GREEN}PID:${NC}            ${PID_VAL}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+
+IS_MULTIMODAL=0
+if [[ "$MODEL_TYPE" == "multimodal" ]]; then
+    IS_MULTIMODAL=1
+    echo ""
+    echo -e "${YELLOW}⚠  WARNING: This model loaded as a MULTIMODAL adapter.${NC}"
+    echo -e "${YELLOW}   Continuous batching for multimodal models is coming soon to${NC}"
+    echo -e "${YELLOW}   Bodega Inference Engine — it is NOT yet enabled for vision models.${NC}"
+    echo ""
+    echo -e "${GREEN}   What you CAN do right now:${NC}"
+    echo -e "     ${GREEN}✓${NC} Use the Interactive Chat Shell to have a full conversation with it"
+    echo -e "     ${YELLOW}⚠${NC} Benchmarks will run in SEQUENTIAL mode (max 3 concurrent requests)"
+    echo ""
+fi
+
 echo "Would you like to run a benchmark now to test performance?"
-echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
-echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
+if [[ "$IS_MULTIMODAL" == "1" ]]; then
+    echo "1) Basic Benchmark (Sequential mode, 3 requests)"
+    echo "2) Throughput Sweep (Sequential mode, 3 requests)"
+else
+    echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
+    echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
+fi
 echo "3) No, just let me use the Interactive Chat Shell!"
 echo "4) Skip"
 read -p "Select an option [1-4]: " run_bench
 
 if [[ "$run_bench" == "1" ]]; then
     echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
-    python benchmark_http_concurrency.py --model "$TARGET_MODEL"
+    if [[ "$IS_MULTIMODAL" == "1" ]]; then
+        python benchmark_http_concurrency.py --model "$TARGET_MODEL" --concurrency 3 --num-queries 3
+    else
+        python benchmark_http_concurrency.py --model "$TARGET_MODEL"
+    fi
 elif [[ "$run_bench" == "2" ]]; then
     echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-    python sweep_cb_configs.py --model "$TARGET_MODEL"
+    if [[ "$IS_MULTIMODAL" == "1" ]]; then
+        python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential
+    else
+        python sweep_cb_configs.py --model "$TARGET_MODEL"
+    fi
 elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py

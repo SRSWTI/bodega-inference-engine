@@ -313,12 +313,18 @@ async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, mo
                 if mtype == "multimodal":
                     print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                           "          The engine currently falls back to sequential execution for vision models.", flush=True)
+                    choice = input("          Continue anyway? [y/N]: ")
+                    if choice.lower() not in ['y', 'yes']:
+                        return False
                 return True
             if resp.status_code in [200, 201]:
                 print(f"      [✓] Loaded as {mtype}.")
                 if mtype == "multimodal":
                     print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
                           "          The engine currently falls back to sequential execution for vision models.", flush=True)
+                    choice = input("          Continue anyway? [y/N]: ")
+                    if choice.lower() not in ['y', 'yes']:
+                        return False
                 return True
             if resp.status_code == 500:
                 print(f"      [!] Load as '{mtype}' failed, trying next type...")
@@ -443,9 +449,18 @@ async def main() -> None:
         action="store_true",
         help="Use non-streaming requests (TTFT less accurate)",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Single concurrency level override (overrides --concurrencies, used for multimodal sequential mode)",
+    )
     args = parser.parse_args()
 
-    concurrencies = [int(x.strip()) for x in args.concurrencies.split(",") if x.strip()]
+    if args.concurrency is not None:
+        concurrencies = [args.concurrency]
+    else:
+        concurrencies = [int(x.strip()) for x in args.concurrencies.split(",") if x.strip()]
 
     print("==" * 35)
     print("  bodega_mlx_engine — HTTP Concurrency Benchmark")
