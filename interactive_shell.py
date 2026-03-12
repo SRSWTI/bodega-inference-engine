@@ -23,6 +23,7 @@ import httpx
 import logging
 import subprocess
 import os
+import random
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -133,6 +134,19 @@ def check_health():
             
     except Exception as e:
         console.print(f"    [red]Error connecting to server: {e}[/red]")
+
+def get_first_loaded_model() -> str:
+    """Helper to get the first currently loaded model_id from the engine."""
+    try:
+        r = httpx.get(f"{BASE_URL}/v1/admin/loaded-models", timeout=2.0)
+        if r.status_code == 200:
+            models = r.json().get("data", [])
+            for m in models:
+                if m.get('status') == "running":
+                    return m.get('id')
+    except Exception:
+        pass
+    return "srswti/bodega-raptor-90m"
 
 def stream_download():
     console.print("\n[bold cyan][+][/bold cyan] Stream Model Download")
@@ -309,7 +323,8 @@ async def run_one_stream(client, url, payload, index, state):
 
 def live_continuous_batching():
     console.print("\n[bold cyan][+] Real-Time Continuous Batching Visualizer[/bold cyan]")
-    mid = Prompt.ask("Enter target model_id", default="srswti/bodega-raptor-90m")
+    default_model = get_first_loaded_model()
+    mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
     
     n_req = IntPrompt.ask("How many parallel requests?", default=2)
@@ -369,18 +384,23 @@ def live_continuous_batching():
         for i, s in enumerate(state):
             trims_prompt = s["prompt"][:35] + "..." if len(s["prompt"]) > 35 else s["prompt"]
 
-            # Build combined display: think in dim, visible in bold green — full content, no truncation
-            display = ""
-            if s["think_text"]:
-                display += f"[dim white]{s['think_text']}[/dim white]"
-            if s["visible_text"]:
-                display += f"[bold green]{s['visible_text']}[/bold green]"
+            think_clean = s["think_text"].replace("<think>", "").replace("</think>", "").strip()
+            vis_clean = s["visible_text"].strip()
+            
+            lines = []
+            for line in think_clean.split("\n"):
+                if line.strip(): lines.append(f"[dim white]{line.strip()}[/dim white]")
+            for line in vis_clean.split("\n"):
+                if line.strip(): lines.append(f"[bold green]{line.strip()}[/bold green]")
+            
+            # Keep only the last 5 lines to stop infinite vertical scrolling!
+            display = "\n".join(lines[-5:]) if lines else "[dim]streaming...[/dim]"
 
             table.add_row(
                 f"#{i+1}",
                 f"[white]{trims_prompt}[/white]",
                 f"{s['status']}\nTTFT: {s['ttft']}",
-                display if display else "[dim]streaming...[/dim]"
+                display
             )
         return table
 
@@ -419,6 +439,7 @@ def live_continuous_batching():
     mtype_detected = get_model_type(mid)
     types_to_try = [mtype_detected, "multimodal" if mtype_detected == "lm" else "lm"]
     for attempt_type in types_to_try:
+        console.print(f"  [dim]-> Applying Continuous Batching configs for model_type '{attempt_type}'...[/dim]")
         try:
             r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
                 "model_path": mid, "model_id": mid,
@@ -429,10 +450,16 @@ def live_continuous_batching():
             }, timeout=120)
             if r.status_code == 409:
                 console.print(f"  [green]✓ Already loaded (as {attempt_type})[/green]")
+                if attempt_type == "multimodal":
+                    console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                                  "    The engine currently falls back to sequential execution for vision models.[/yellow]")
                 load_ok = True
                 break
             elif r.status_code in [200, 201]:
                 console.print(f"  [green]✓ Loaded as {attempt_type}[/green]")
+                if attempt_type == "multimodal":
+                    console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                                  "    The engine currently falls back to sequential execution for vision models.[/yellow]")
                 load_ok = True
                 break
             elif r.status_code == 500:
@@ -469,7 +496,8 @@ def live_continuous_batching():
 
 def interactive_chat():
     console.print("\n[bold magenta][+] Interactive Chat Mode[/bold magenta]")
-    mid = Prompt.ask("Enter target model_id", default="srswti/bodega-raptor-90m")
+    default_model = get_first_loaded_model()
+    mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
     
     messages = [

@@ -207,9 +207,15 @@ async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, mo
             resp = await client.post(url, json=payload, timeout=120.0)
             if resp.status_code == 409:
                 print(f"  (Already loaded as {mtype})", flush=True)
+                if mtype == "multimodal" and kwargs.get("continuous_batching"):
+                    print("  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                          "      The engine currently falls back to sequential execution for vision models.", flush=True)
                 return True
             if resp.status_code in [200, 201]:
                 print(f"  (Loaded as {mtype})", flush=True)
+                if mtype == "multimodal" and kwargs.get("continuous_batching"):
+                    print("  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                          "      The engine currently falls back to sequential execution for vision models.", flush=True)
                 return True
             if resp.status_code == 500:
                 # Try next type

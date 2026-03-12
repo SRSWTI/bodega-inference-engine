@@ -63,11 +63,18 @@ fi
 echo ""
 echo -e "${YELLOW}Step 1.b: Installing Apple Silicon Telemetry Tools${NC}"
 if ! command -v mactop &> /dev/null; then
+    if ! command -v brew &> /dev/null; then
+        echo -e "${YELLOW}Homebrew not found. Installing Homebrew automatically...${NC}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # Add brew to path for the rest of the script (common locations)
+        eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)" || eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"
+    fi
+    
     if command -v brew &> /dev/null; then
         echo -e "${BLUE}Installing mactop (Real-time Apple Silicon monitor)...${NC}"
         brew install mactop
     else
-        echo -e "${RED}Homebrew not found. Skipping mactop installation.${NC}"
+        echo -e "${RED}Homebrew could not be installed. Skipping mactop installation.${NC}"
     fi
 else
     echo -e "${GREEN}mactop is already installed.${NC}"
