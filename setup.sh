@@ -61,13 +61,27 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}Step 1.b: Installing Apple Silicon Telemetry Tools${NC}"
+if ! command -v mactop &> /dev/null; then
+    if command -v brew &> /dev/null; then
+        echo -e "${BLUE}Installing mactop (Real-time Apple Silicon monitor)...${NC}"
+        brew install mactop
+    else
+        echo -e "${RED}Homebrew not found. Skipping mactop installation.${NC}"
+    fi
+else
+    echo -e "${GREEN}mactop is already installed.${NC}"
+fi
+
+echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
 echo "Which model(s) would you like to download?"
 echo "1) Bodega Raptor 90M (srswti/bodega-raptor-90m) - Ultra-fast, great for continuous batching tests"
 echo "2) Bodega Raptor 8B (srswti/bodega-raptor-8b-mxfp4) - Powerful and small parameter model"
 echo "3) Both Models"
-echo "4) Skip Model Download"
-read -p "Select an option [1-4]: " model_choice
+echo "4) Custom Model Repository from HuggingFace"
+echo "5) Skip Model Download"
+read -p "Select an option [1-5]: " model_choice
 
 MODELS=()
 if [[ "$model_choice" == "1" || "$model_choice" == "3" ]]; then
@@ -76,8 +90,20 @@ fi
 if [[ "$model_choice" == "2" || "$model_choice" == "3" ]]; then
     MODELS+=("srswti/bodega-raptor-8b-mxfp4")
 fi
+if [[ "$model_choice" == "4" ]]; then
+    read -p "Enter HuggingFace model path (e.g. mlx-community/Qwen3.5-0.5B-Instruct-4bit): " custom_model
+    if [ -n "$custom_model" ]; then
+        MODELS+=("$custom_model")
+    fi
+fi
 
 if [ ${#MODELS[@]} -eq 0 ]; then
+    TARGET_MODEL="srswti/bodega-raptor-90m"
+else
+    TARGET_MODEL=${MODELS[0]}
+fi
+
+if [[ "$model_choice" == "5" ]]; then
     echo -e "\n${GREEN}Setup complete!${NC}"
     echo ""
     echo "Would you like to run a benchmark now?"
@@ -88,12 +114,12 @@ if [ ${#MODELS[@]} -eq 0 ]; then
     
     if [[ "$run_bench" == "1" ]]; then
         echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
-        python benchmark_http_concurrency.py
+        python benchmark_http_concurrency.py --model "$TARGET_MODEL"
     elif [[ "$run_bench" == "2" ]]; then
         echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-        python sweep_cb_configs.py
+        python sweep_cb_configs.py --model "$TARGET_MODEL"
     else
-        echo -e "\nYou can run the tests anytime with: ${YELLOW}python benchmark_http_concurrency.py${NC} or ${YELLOW}python sweep_cb_configs.py${NC}"
+        echo -e "\nYou can run the tests anytime with: ${YELLOW}python benchmark_http_concurrency.py --model $TARGET_MODEL${NC} or ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}"
     fi
     exit 0
 fi
@@ -142,6 +168,8 @@ done
 echo -e "\n${GREEN}=== Setup Complete! ===${NC}"
 echo ""
 
+TARGET_MODEL=${MODELS[0]}
+
 echo "Would you like to run a benchmark now to test performance?"
 echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
 echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
@@ -151,16 +179,16 @@ read -p "Select an option [1-4]: " run_bench
 
 if [[ "$run_bench" == "1" ]]; then
     echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
-    python benchmark_http_concurrency.py
+    python benchmark_http_concurrency.py --model "$TARGET_MODEL"
 elif [[ "$run_bench" == "2" ]]; then
     echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-    python sweep_cb_configs.py
+    python sweep_cb_configs.py --model "$TARGET_MODEL"
 elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
 else
     echo -e "\nYou can test continuous batching and interact with models anytime by running:"
-    echo -e "  ${YELLOW}python benchmark_http_concurrency.py${NC}  (for basic load testing)"
-    echo -e "  ${YELLOW}python sweep_cb_configs.py${NC}  (for config benchmarking)"
+    echo -e "  ${YELLOW}python benchmark_http_concurrency.py --model $TARGET_MODEL${NC}  (for basic load testing)"
+    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (for config benchmarking)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (for live chat and visuals)"
 fi

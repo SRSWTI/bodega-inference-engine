@@ -13,9 +13,10 @@ import json
 import statistics
 import sys
 import time
+import subprocess
+import os
 from dataclasses import dataclass, field
 from typing import List
-
 import httpx
 from loguru import logger
 
@@ -149,13 +150,82 @@ async def _run_one_http(client: httpx.AsyncClient, base_url: str, model_id: str,
     except Exception as exc:
         return RequestResult(error=str(exc), total_time_s=time.perf_counter() - t0)
 
+class IncompatibleModelError(Exception):
+    pass
+
+def open_mactop_window():
+    """Opens mactop in a new Terminal window side-by-side via osascript."""
+    script = 'tell application "Terminal" to do script "mactop"'
+    ret = os.system(f"osascript -e '{script}' >/dev/null 2>&1")
+    if ret != 0:
+        # Fallback: silent, don't block the benchmark
+        pass
+
+async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
+    """Check HuggingFace API: verify MLX tag and return 'lm' or 'multimodal'.
+    Raises IncompatibleModelError if the model has no MLX tag.
+    """
+    if "/" not in model_path:
+        return "lm"  # local model, assume OK
+    try:
+        resp = await client.get(f"https://huggingface.co/api/models/{model_path}", timeout=6.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            tags = [t.lower() for t in data.get("tags", [])]
+            pipeline_tag = data.get("pipeline_tag", "")
+
+            has_mlx = any("mlx" in t for t in tags)
+            if not has_mlx:
+                raise IncompatibleModelError(
+                    f"Model '{model_path}' does not have an MLX tag on HuggingFace. "
+                    f"Only MLX-format models are compatible with the Bodega Inference Engine."
+                )
+
+            if pipeline_tag == "image-text-to-text":
+                return "multimodal"
+    except IncompatibleModelError:
+        raise
+    except Exception:
+        pass
+    return "lm"
+
 async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, model_path: str, model_id: str, **kwargs) -> bool:
     if action == "load":
         url = f"{base_url.rstrip('/')}/v1/admin/load-model"
-        payload = {"model_path": model_path, "model_id": model_id, "model_type": "lm", "context_length": 8192}
-        payload.update(kwargs)
-        resp = await client.post(url, json=payload, timeout=120.0)
-        return resp.status_code in [200, 201]
+
+        try:
+            primary_type = await get_model_type(client, model_path)
+        except IncompatibleModelError as e:
+            print(f"\n  ✗ {e}")
+            return False
+
+        # Try primary detected type, then fallback to the other
+        types_to_try = [primary_type, "multimodal" if primary_type == "lm" else "lm"]
+        for mtype in types_to_try:
+            payload = {"model_path": model_path, "model_id": model_id, "model_type": mtype, "context_length": 8192}
+            payload.update(kwargs)
+            resp = await client.post(url, json=payload, timeout=120.0)
+            if resp.status_code == 409:
+                print(f"  (Already loaded as {mtype})", flush=True)
+                return True
+            if resp.status_code in [200, 201]:
+                print(f"  (Loaded as {mtype})", flush=True)
+                return True
+            if resp.status_code == 500:
+                # Try next type
+                continue
+            # Any other error (4xx etc.) — fatal
+            try:
+                msg = resp.json().get("error", {}).get("message", resp.text[:120])
+            except Exception:
+                msg = resp.text[:120]
+            print(f"  ✗ Load failed ({resp.status_code}): {msg}")
+            return False
+
+        print(f"  ✗ Model '{model_path}' could not be loaded as 'lm' or 'multimodal'. "
+              f"This model may not be compatible with the Bodega Inference Engine.")
+        return False
+
     elif action == "unload":
         url = f"{base_url.rstrip('/')}/v1/admin/unload-model/{model_id}"
         resp = await client.delete(url, timeout=30.0)
@@ -180,6 +250,27 @@ async def benchmark_batched_http(base_url: str, model_path: str, prompts: List[s
         t_start = time.perf_counter()
         results = await asyncio.gather(*[_run_one_http(client, base_url, model_id, p, max_tokens) for p in test_prompts])
         wall_time = time.perf_counter() - t_start
+
+        try:
+            if os.system("command -v mactop >/dev/null 2>&1") == 0:
+                res = subprocess.run(["mactop", "--headless", "--count", "1"], capture_output=True, text=True, timeout=2.0)
+                if res.returncode == 0:
+                    data = json.loads(res.stdout)
+                    if isinstance(data, list) and len(data) > 0:
+                        sm = data[0].get("soc_metrics", {})
+                        cpu_p = sm.get("cpu_power", 0)
+                        gpu_p = sm.get("gpu_power", 0)
+                        sys_p = sm.get("system_power", 0)
+                        gpu_freq = sm.get("gpu_freq_mhz", 0)
+                        gpu_temp = sm.get("gpu_temp", 0)
+                        
+                        mem = data[0].get("memory", {})
+                        ram_used = mem.get("used", 0) / (1024**3)
+                        ram_tot = mem.get("total", 0) / (1024**3)
+                        
+                        print(f"  [Telemetry] RAM: {ram_used:.1f}GB/{ram_tot:.0f}GB | Pwr: {sys_p:.1f}W (CPU: {cpu_p:.1f}W GPU: {gpu_p:.1f}W {gpu_freq}MHz) | GPU Temp: {gpu_temp:.1f}°C")
+        except Exception:
+            pass
 
         print("  Unloading model...", end=" ", flush=True)
         await manage_model(client, base_url, "unload", model_path, model_id)

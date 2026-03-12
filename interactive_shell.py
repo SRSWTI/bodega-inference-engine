@@ -21,6 +21,8 @@ import time
 import asyncio
 import httpx
 import logging
+import subprocess
+import os
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -35,9 +37,43 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 BASE_URL = "http://localhost:44468"
 console = Console()
 
+MACTOP_SPECS_CACHE = None
+
+def get_silicon_specs():
+    global MACTOP_SPECS_CACHE
+    if MACTOP_SPECS_CACHE is not None:
+         return MACTOP_SPECS_CACHE
+         
+    try:
+        if os.system("command -v mactop >/dev/null 2>&1") == 0:
+            res = subprocess.run(["mactop", "--headless", "--count", "1"], capture_output=True, text=True, timeout=2.0)
+            if res.returncode == 0:
+                data = json.loads(res.stdout)
+                if isinstance(data, list) and len(data) > 0:
+                     info = data[0].get("system_info", {})
+                     name = info.get("name", "Apple Silicon")
+                     cores = info.get("core_count", "?")
+                     pcores = info.get("p_core_count", "?")
+                     ecores = info.get("e_core_count", "?")
+                     gpu = info.get("gpu_core_count", "?")
+                     
+                     mem = data[0].get("memory", {})
+                     total_mem = mem.get("total", 0) / (1024**3)
+                     
+                     MACTOP_SPECS_CACHE = f"[bold yellow]System:[/bold yellow] {name} ({cores} CPU Cores: {pcores}P/{ecores}E | {gpu} GPU Cores) - [bold yellow]RAM:[/bold yellow] {total_mem:.0f} GB"
+                     return MACTOP_SPECS_CACHE
+    except Exception:
+         pass
+         
+    MACTOP_SPECS_CACHE = ""
+    return MACTOP_SPECS_CACHE
+
 def print_header():
     console.print("\n" + "=" * 70, style="bold magenta")
     console.print(" 🏪 BODEGA INFERENCE ENGINE — INTERACTIVE SHELL", style="bold cyan", justify="center")
+    specs = get_silicon_specs()
+    if specs:
+        console.print(specs, justify="center")
     console.print("=" * 70, style="bold magenta")
 
 def print_menu():
@@ -52,7 +88,8 @@ def print_menu():
     table.add_row("5", "[bold yellow]Test Live Continuous Batching (Parallel Requests)[/bold yellow]")
     table.add_row("6", "[bold magenta]Interactive Chat Mode[/bold magenta]")
     table.add_row("7", "Read about config.yaml (Static Registry Setup)")
-    table.add_row("8", "Exit")
+    table.add_row("8", "[bold bright_cyan]Launch Real-Time Apple Silicon Telemetry (mactop)[/bold bright_cyan]")
+    table.add_row("9", "Exit")
     
     console.print("\n[bold cyan]--- Main Menu ---[/bold cyan]")
     console.print(table)
@@ -147,17 +184,36 @@ def stream_download():
     except Exception as e:
         console.print(f"\n[red]Error mapping download stream: {e}[/red]")
 
+def get_model_type(model_path: str) -> str:
+    """Check HuggingFace API to see if the model needs multimodal or lm."""
+    if not "/" in model_path:
+         return "lm"
+    try:
+         resp = httpx.get(f"https://huggingface.co/api/models/{model_path}", timeout=5.0)
+         if resp.status_code == 200:
+              data = resp.json()
+              pipeline_tag = data.get("pipeline_tag", "")
+              if pipeline_tag == "image-text-to-text":
+                   return "multimodal"
+    except Exception:
+         pass
+    return "lm"
+
 def load_model():
     console.print("\n[bold cyan][+][/bold cyan] Dynamically Load a Model")
     path = Prompt.ask("Enter model_path", default="srswti/bodega-raptor-90m")
     if not path: return
     mid = Prompt.ask("Enter model_id (alias)", default=path)
     
+    mtype = get_model_type(path)
+    if mtype == "multimodal":
+        console.print("  [cyan]-> Detected vision capabilities. Loading as multimodal.[/cyan]")
+        
     cb_choice = Confirm.ask("Enable Continuous Batching (High throughput)?")
     payload = {
         "model_path": path,
         "model_id": mid,
-        "model_type": "lm",
+        "model_type": mtype,
         "max_concurrency": 1
     }
     
@@ -354,8 +410,47 @@ def live_continuous_batching():
             await asyncio.gather(refresh(), *tasks)
 
     console.print("\n[bold yellow]Firing continuous batching cluster...[/bold yellow]\n")
+    
+    # Auto-load the model if not already loaded
+    console.print(f"  [cyan]Loading model {mid}...[/cyan]", end=" ")
+    load_ok = False
+    try:
+        r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
+            "model_path": mid, "model_id": mid,
+            "model_type": get_model_type(mid),
+            "continuous_batching": True,
+            "cb_max_num_seqs": 128,
+            "context_length": 8192
+        }, timeout=120)
+        if r.status_code == 409:
+            console.print("[green]already loaded[/green]")
+            load_ok = True
+        elif r.status_code in [200, 201]:
+            console.print("[green]done[/green]")
+            load_ok = True
+        else:
+            try:
+                err = r.json()
+                msg = err.get("error", {}).get("message", r.text[:120])
+            except Exception:
+                msg = r.text[:120]
+            console.print(f"[red]failed ({r.status_code}): {msg}[/red]")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+    
+    if not load_ok:
+        console.print("[red]Cannot run batch — model failed to load. Try loading it manually via Option 3.[/red]")
+        return
+    
     with Live(generate_table(), console=console, refresh_per_second=10, vertical_overflow="visible") as live:
         asyncio.run(run_all(live))
+    
+    # Unload after done
+    try:
+        httpx.delete(f"{BASE_URL}/v1/admin/unload-model/{mid}", timeout=30)
+        console.print(f"  [dim]Model {mid} unloaded.[/dim]")
+    except Exception:
+        pass
 
 # --- Interactive Chat Mode ---
 
@@ -465,12 +560,34 @@ variables or args depending on the entry point wrapper.
 """
     console.print(Panel(text, title="config.yaml Explained", border_style="blue"))
 
+def launch_mactop():
+    console.print("\n[bold cyan][+][/bold cyan] Launching Real-Time Apple Silicon Telemetry (mactop)...")
+    if os.system("command -v mactop >/dev/null 2>&1") != 0:
+        console.print("[red]mactop is not installed. Please run: brew install mactop[/red]")
+        return
+    
+    # Open mactop in a NEW Terminal window side-by-side via osascript
+    script = '''
+    tell application "Terminal"
+        do script "mactop"
+        activate
+    end tell
+    '''
+    ret = os.system(f"osascript -e '{script}'")
+    if ret == 0:
+        console.print("  [green]✓ mactop launched in a new Terminal window.[/green]")
+        console.print("  [dim]Close that window or press q inside mactop to stop it.[/dim]")
+    else:
+        console.print("  [yellow]osascript failed — falling back to running mactop here (press q to exit).[/yellow]")
+        time.sleep(1)
+        os.system("mactop")
+
 def main():
     while True:
         try:
             print_header()
             print_menu()
-            choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(1, 9)])
+            choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(1, 10)])
             
             if choice == '1': check_health()
             elif choice == '2': stream_download()
@@ -479,7 +596,8 @@ def main():
             elif choice == '5': live_continuous_batching()
             elif choice == '6': interactive_chat()
             elif choice == '7': print_config_explanation()
-            elif choice == '8': 
+            elif choice == '8': launch_mactop()
+            elif choice == '9': 
                 console.print("\n[bold green]Exiting. Thank you for using the Bodega Inference Engine.[/bold green]")
                 break
                 

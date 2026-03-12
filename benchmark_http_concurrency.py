@@ -249,15 +249,31 @@ async def run_streaming_request(
         )
 
 
+async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
+    """Check HuggingFace API to see if the model needs multimodal or lm."""
+    if not "/" in model_path:
+         return "lm"
+    try:
+         resp = await client.get(f"https://huggingface.co/api/models/{model_path}")
+         if resp.status_code == 200:
+              data = resp.json()
+              pipeline_tag = data.get("pipeline_tag", "")
+              if pipeline_tag == "image-text-to-text":
+                   return "multimodal"
+    except Exception:
+         pass
+    return "lm"
+
 async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, model_path: str, model_id: str) -> bool:
     """Helper to dynamically load/unload the model for benchmarks."""
     full_url = base_url.rstrip("/")
     if action == "load":
         print(f"  [+] Loading model {model_path} into {model_id}...")
+        mtype = await get_model_type(client, model_path)
         payload = {
             "model_path": model_path,
             "model_id": model_id,
-            "model_type": "lm",
+            "model_type": mtype,
             "context_length": 8192,
             "continuous_batching": True,
             "cb_max_num_seqs": 128

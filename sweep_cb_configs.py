@@ -10,13 +10,42 @@ import argparse
 import asyncio
 import io
 import contextlib
+import json
+import subprocess
+import os
 import httpx
 from tabulate import tabulate
 
-from benchmark_continuous_batching import benchmark_batched_http, PROMPTS, manage_model
+from benchmark_continuous_batching import benchmark_batched_http, PROMPTS, manage_model, open_mactop_window
 
-async def run_sweep(base_url: str):
-    model = "srswti/bodega-raptor-90m"
+def get_telemetry():
+    """Grab real-time Apple Silicon metrics from mactop --headless."""
+    try:
+        if os.system("command -v mactop >/dev/null 2>&1") == 0:
+            res = subprocess.run(["mactop", "--headless", "--count", "1"],
+                                 capture_output=True, text=True, timeout=2.0)
+            if res.returncode == 0:
+                data = json.loads(res.stdout)
+                if isinstance(data, list) and len(data) > 0:
+                    sm   = data[0].get("soc_metrics", {})
+                    mem  = data[0].get("memory", {})
+                    ru   = mem.get("used",   0) / (1024**3)
+                    rt   = mem.get("total",  0) / (1024**3)
+                    s_p  = sm.get("system_power", 0)
+                    c_p  = sm.get("cpu_power",    0)
+                    g_p  = sm.get("gpu_power",    0)
+                    freq = sm.get("gpu_freq_mhz", 0)
+                    temp = sm.get("gpu_temp",     0)
+                    cpu_pct = data[0].get("cpu_usage", 0)
+                    gpu_pct = data[0].get("gpu_usage", 0)
+                    return (f"RAM {ru:.1f}/{rt:.0f}GB "
+                            f"| CPU {cpu_pct:.0f}% GPU {gpu_pct:.0f}% @ {freq}MHz {temp:.0f}°C "
+                            f"| Pwr {s_p:.1f}W (CPU {c_p:.1f}W GPU {g_p:.1f}W)")
+    except Exception:
+        pass
+    return None
+
+async def run_sweep(base_url: str, model: str):
     max_tokens = 128
     
     configs = [(8, 2), (8, 4), (8, 8), (16, 4), (16, 8), (16, 16), (32, 8), (32, 16)]
@@ -47,6 +76,10 @@ async def run_sweep(base_url: str):
                     cb_chunked_prefill_tokens=2048,
                 )
             
+            telemetry = get_telemetry()
+            telemetry_str = f"  [{telemetry}]" if telemetry else ""
+            print(f"Done.{telemetry_str}", flush=True)
+
             results_table.append([
                 scenario_name,
                 concurrency,
@@ -56,7 +89,6 @@ async def run_sweep(base_url: str):
                 f"{summary.mean_tps:.1f}",
                 f"{summary.throughput_tps:.1f}"
             ])
-            print("Done.")
 
     print("\n\n" + "=" * 85)
     print("  CONTINUOUS BATCHING SWEEP RESULTS")
@@ -67,5 +99,8 @@ async def run_sweep(base_url: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:44468", help="Server base URL")
+    parser.add_argument("--model", default="srswti/bodega-raptor-90m", help="Model to use for sweep")
     args = parser.parse_args()
-    asyncio.run(run_sweep(args.base_url))
+    print("  [Telemetry] Opening mactop in a new Terminal window...")
+    open_mactop_window()
+    asyncio.run(run_sweep(args.base_url, args.model))
