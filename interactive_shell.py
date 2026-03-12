@@ -326,7 +326,34 @@ def live_continuous_batching():
     default_model = get_first_loaded_model()
     mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
-    
+
+    # ── Check if this model is multimodal ────────────────────────────────────
+    is_multimodal = False
+    try:
+        r = httpx.get(f"{BASE_URL}/v1/admin/loaded-models", timeout=5)
+        loaded = r.json().get("data", [])
+        m = next((x for x in loaded if x.get("id") == mid), None)
+        if m and m.get("type", m.get("model_type", "lm")) == "multimodal":
+            is_multimodal = True
+    except Exception:
+        pass
+
+    if is_multimodal:
+        console.print("")
+        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
+        console.print("[bold yellow]  ⚠  MULTIMODAL MODEL DETECTED[/bold yellow]")
+        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
+        console.print("[yellow]  This model loaded as a [bold]multimodal[/bold] adapter.[/yellow]")
+        console.print("[yellow]  Continuous batching for vision models is [bold]coming soon[/bold] to Bodega.[/yellow]")
+        console.print("[yellow]  Parallel requests will run [bold]sequentially[/bold] instead of batched.[/yellow]")
+        console.print("")
+        console.print("[green]  ✓ You can still test throughput — requests run one-by-one.[/green]")
+        console.print("[green]  ✓ For full batching, use an LM (language model) adapter.[/green]")
+        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
+        console.print("")
+        if not Confirm.ask("  Proceed anyway in sequential mode?", default=True):
+            return
+
     n_req = IntPrompt.ask("How many parallel requests?", default=2)
     
     sample_prompts = [

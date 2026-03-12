@@ -177,38 +177,70 @@ echo ""
 
 TARGET_MODEL=${MODELS[0]}
 
-# ─── Inspect the model that was just loaded ───────────────────────────────────
-echo -e "${YELLOW}Inspecting loaded model info...${NC}"
+# ─── Load model and inspect what adapter type the engine assigns ───────────────
+echo -e "${YELLOW}Loading and inspecting model adapter type...${NC}"
 
-eval "$(python3 -c "
-import json, httpx, sys
+# Write the inspector to a temp file to avoid shell quoting hell
+cat > /tmp/bodega_model_inspect.py << 'PYEOF'
+import sys, json, httpx, time
 
-BASE = 'http://localhost:44468'
-model_id = '$TARGET_MODEL'
+BASE = "http://localhost:44468"
+model_id = sys.argv[1]
 
-try:
-    r = httpx.get(f'{BASE}/v1/admin/loaded-models', timeout=5)
-    models = r.json().get('data', [])
-    m = next((x for x in models if x.get('id') == model_id), None)
-    if m is None and models:
-        m = models[-1]
-    if m:
-        mem   = m.get('memory', {})
-        mtype = m.get('type', m.get('model_type', 'lm'))
-        rss   = mem.get('rss_mb', 0)
-        metal = mem.get('metal_peak_mb', mem.get('metal_active_mb', 0))
-        total = mem.get('total_mb', 0)
-        pid   = m.get('pid', 'N/A')
-        print(f'MODEL_TYPE={mtype}')
-        print(f'RSS_MB={rss:.0f}')
-        print(f'METAL_MB={metal:.0f}')
-        print(f'TOTAL_MB={total:.0f}')
-        print(f'PID_VAL={pid}')
+def load_model(mtype):
+    try:
+        r = httpx.post(f"{BASE}/v1/admin/load-model", json={
+            "model_path": model_id,
+            "model_id": model_id,
+            "model_type": mtype,
+            "context_length": 8192,
+            "max_concurrency": 8,
+        }, timeout=120)
+        return r.status_code
+    except Exception:
+        return 0
+
+# Step 1: Try loading as lm
+print(f"  [->] Trying to load '{model_id}' as lm...", flush=True)
+code = load_model("lm")
+if code in [200, 201, 409]:
+    print(f"  [ok] Loaded as lm (status={code})", flush=True)
+else:
+    # Step 2: Fallback to multimodal
+    print(f"  [!] lm load failed (status={code}), trying multimodal...", flush=True)
+    code = load_model("multimodal")
+    if code in [200, 201, 409]:
+        print(f"  [ok] Loaded as multimodal (status={code})", flush=True)
     else:
-        print('MODEL_TYPE=lm'); print('RSS_MB=0'); print('METAL_MB=0'); print('TOTAL_MB=0'); print('PID_VAL=N/A')
-except Exception as e:
-    print('MODEL_TYPE=lm'); print('RSS_MB=0'); print('METAL_MB=0'); print('TOTAL_MB=0'); print('PID_VAL=N/A')
-")"
+        print(f"  [!] Both lm and multimodal load failed. Proceeding with inspection.", flush=True)
+
+# Step 3: Wait for engine to settle, then read actual adapter type
+time.sleep(1)
+try:
+    r = httpx.get(f"{BASE}/v1/admin/loaded-models", timeout=5)
+    models = r.json().get("data", [])
+    m = next((x for x in models if x.get("id") == model_id), None)
+    if m:
+        mem   = m.get("memory", {})
+        mtype = m.get("type", m.get("model_type", "lm"))
+        rss   = mem.get("rss_mb", 0)
+        metal = mem.get("metal_peak_mb", mem.get("metal_active_mb", 0))
+        total = mem.get("total_mb", 0)
+        pid   = m.get("pid", "N/A")
+        print(f"MODEL_TYPE={mtype}")
+        print(f"RSS_MB={rss:.0f}")
+        print(f"METAL_MB={metal:.0f}")
+        print(f"TOTAL_MB={total:.0f}")
+        print(f"PID_VAL={pid}")
+    else:
+        print("MODEL_TYPE=lm"); print("RSS_MB=0"); print("METAL_MB=0"); print("TOTAL_MB=0"); print("PID_VAL=N/A")
+except Exception:
+    print("MODEL_TYPE=lm"); print("RSS_MB=0"); print("METAL_MB=0"); print("TOTAL_MB=0"); print("PID_VAL=N/A")
+PYEOF
+
+# Run it and capture only the KEY=VALUE lines into shell vars
+eval "$(python3 /tmp/bodega_model_inspect.py "$TARGET_MODEL" 2>&1 | grep -E '^(MODEL_TYPE|RSS_MB|METAL_MB|TOTAL_MB|PID_VAL)=')"
+
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -218,6 +250,8 @@ echo -e "  ${GREEN}RAM (RSS):${NC}      ${RSS_MB} MB"
 echo -e "  ${GREEN}Metal Peak:${NC}     ${METAL_MB} MB  (Total: ${TOTAL_MB} MB)"
 echo -e "  ${GREEN}PID:${NC}            ${PID_VAL}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+
 
 
 IS_MULTIMODAL=0
