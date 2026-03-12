@@ -314,38 +314,36 @@ def live_continuous_batching():
     
     n_req = IntPrompt.ask("How many parallel requests?", default=2)
     
-    import random
     sample_prompts = [
-        "Write a Python function to calculate fibonacci numbers with memoization.",
-        "Explain the difference between a list and a tuple in Python.",
-        "Explain quantum computing in detail, covering: qubits, superposition, and entanglement.",
-        "Write a comprehensive guide to building a production REST API in Python.",
-        "What is 234 * 455? Explain your reasoning step-by-step.",
-        "Solve for x: 2x + 5 = 15.",
-        "Write a short, suspenseful story about a detective finding a strange artifact.",
-        "Translate 'Hello, how are you today? I am learning artificial intelligence.' into French.",
-        "If Mary is twice as old as her brother, and her brother is 5, how old will Mary be in 10 years? Let's think step by step.",
-        "What are the benefits of continuous batching in LLM inference?",
-        "Explain the plot of the movie Dune.",
-        "Discuss the philosophy of existentialism and its main proponents.",
-        "Write a bash script to bulk rename all .txt files to .md in a directory.",
-        "Can you explain the Theory of Relativity to a 10-year-old?",
-        "Create a React component that displays a counter with increment and decrement buttons.",
-        "Write an SQL query to find the 3nd highest salary in an Employee table.",
-        "Explain how a Transformer architecture works in neural networks.",
-        "Provide a recipe for authentic Italian carbonara.",
-        "Write a haiku about a rainy day in the city.",
-        "What are the key differences between Postgres and MongoDB?",
-        "Why is the sky blue? Explain the physics behind it.",
-        "Write an email to a manager asking for a week of vacation next month.",
-        "List 5 strategies to improve the performance of a website.",
-        "Write a C++ program that implements binary search.",
-        "Explain the difference between concurrent and parallel programming.",
-        "Write a poem about the inevitability of time.",
-        "How do you implement a load balancer? Describe the algorithms.",
-        "Who was Alan Turing? Summarize his contributions to computer science.",
-        "Explain Rust's ownership and borrowing system.",
-        "Calculate the derivative of f(x) = x^3 + 2x^2 - x + 5."
+        # Simple / Fun
+        "Name a primary color.",
+        "Translate 'apple' to Spanish.",
+        "Say 'Good morning' in French.",
+        "Write a haiku about a robot.",
+        "What noise does a cow make?",
+        
+        # Coding (Short)
+        "Write a short Python function to reverse a string.",
+        "What is a 'pointer' in C? Explain in one sentence.",
+        "Write a SQL query to find the maximum salary in an Employee table.",
+        "Explain the difference between POST and GET in HTTP briefly.",
+        
+        # Physics / Science (Short)
+        "What is Einstein's equation for mass-energy equivalence?",
+        "Briefly explain the Heisenberg Uncertainty Principle.",
+        "Why does a helium balloon float? Give a one-sentence answer.",
+        "If you drop a feather and a bowling ball on the moon, which hits the ground first?",
+        
+        # Reasoning / Life / Riddles
+        "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?",
+        "What is the meaning of life? Keep it under 10 words.",
+        "I speak without a mouth and hear without ears. What am I?",
+        "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets?",
+        
+        # Math
+        "What is 25 * 4? Say just the number.",
+        "What is the square root of 144?",
+        "Calculate the derivative of x^2."
     ]
     random.shuffle(sample_prompts)
     
