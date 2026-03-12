@@ -411,35 +411,50 @@ def live_continuous_batching():
 
     console.print("\n[bold yellow]Firing continuous batching cluster...[/bold yellow]\n")
     
-    # Auto-load the model if not already loaded
-    console.print(f"  [cyan]Loading model {mid}...[/cyan]", end=" ")
+    # Open mactop side-by-side in a new Terminal window
+    console.print("  [dim]Opening mactop telemetry window...[/dim]")
+    os.system("osascript -e 'tell application \"Terminal\" to do script \"mactop\"' >/dev/null 2>&1")
+    
+    # Auto-load the model with lm→multimodal fallback
+    console.print(f"  [cyan]Loading model {mid}...[/cyan]")
     load_ok = False
-    try:
-        r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
-            "model_path": mid, "model_id": mid,
-            "model_type": get_model_type(mid),
-            "continuous_batching": True,
-            "cb_max_num_seqs": 128,
-            "context_length": 8192
-        }, timeout=120)
-        if r.status_code == 409:
-            console.print("[green]already loaded[/green]")
-            load_ok = True
-        elif r.status_code in [200, 201]:
-            console.print("[green]done[/green]")
-            load_ok = True
-        else:
-            try:
-                err = r.json()
-                msg = err.get("error", {}).get("message", r.text[:120])
-            except Exception:
-                msg = r.text[:120]
-            console.print(f"[red]failed ({r.status_code}): {msg}[/red]")
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+    mtype_detected = get_model_type(mid)
+    types_to_try = [mtype_detected, "multimodal" if mtype_detected == "lm" else "lm"]
+    for attempt_type in types_to_try:
+        try:
+            r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
+                "model_path": mid, "model_id": mid,
+                "model_type": attempt_type,
+                "continuous_batching": True,
+                "cb_max_num_seqs": 128,
+                "context_length": 8192
+            }, timeout=120)
+            if r.status_code == 409:
+                console.print(f"  [green]✓ Already loaded (as {attempt_type})[/green]")
+                load_ok = True
+                break
+            elif r.status_code in [200, 201]:
+                console.print(f"  [green]✓ Loaded as {attempt_type}[/green]")
+                load_ok = True
+                break
+            elif r.status_code == 500:
+                console.print(f"  [yellow]Load as '{attempt_type}' failed (500), trying next...[/yellow]")
+                continue
+            else:
+                try:
+                    err = r.json()
+                    msg = err.get("error", {}).get("message", r.text[:120])
+                except Exception:
+                    msg = r.text[:120]
+                console.print(f"  [red]failed ({r.status_code}): {msg}[/red]")
+                break
+        except Exception as e:
+            console.print(f"  [red]Error: {e}[/red]")
+            break
     
     if not load_ok:
-        console.print("[red]Cannot run batch — model failed to load. Try loading it manually via Option 3.[/red]")
+        console.print("  [red]✗ This model could not be loaded as 'lm' or 'multimodal'. "
+                      "Ensure it has an MLX tag on HuggingFace to be compatible with the Bodega Inference Engine.[/red]")
         return
     
     with Live(generate_table(), console=console, refresh_per_second=10, vertical_overflow="visible") as live:

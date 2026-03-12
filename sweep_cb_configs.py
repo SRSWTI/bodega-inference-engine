@@ -95,6 +95,21 @@ async def run_sweep(base_url: str, model: str):
     print("=" * 85)
     headers = ["Scenario", "Concurrency", "Prefill Batch", "Mean TTFT (ms)", "p95 TTFT (ms)", "Per-Req TPS", "System Throughput"]
     print(tabulate(results_table, headers=headers, tablefmt="github"))
+    
+    try:
+        mixed_results = [r for r in results_table if r[0] == "Mixed Queries"]
+        if mixed_results:
+            best = max(mixed_results, key=lambda x: (float(x[6]), -float(x[3])))
+            print("\n" + "=" * 85)
+            print("  🏆 BEST REAL-WORLD CONFIGURATION (Mixed Queries)")
+            print("=" * 85)
+            print(f"  Concurrency:   {best[1]}")
+            print(f"  Prefill Batch: {best[2]}")
+            print(f"  → Yields highest System Throughput: {best[6]} tok/s  (Mean TTFT: {best[3]} ms)")
+            print("=" * 85)
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

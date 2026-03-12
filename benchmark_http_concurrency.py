@@ -35,6 +35,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
+import os
 
 import httpx
 
@@ -249,42 +250,80 @@ async def run_streaming_request(
         )
 
 
+class IncompatibleModelError(Exception):
+    pass
+
+def open_mactop_window():
+    """Opens mactop in a new Terminal window side-by-side via osascript."""
+    script = 'tell application "Terminal" to do script "mactop"'
+    os.system(f"osascript -e '{script}' >/dev/null 2>&1")
+
 async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
-    """Check HuggingFace API to see if the model needs multimodal or lm."""
-    if not "/" in model_path:
-         return "lm"
+    """Check HuggingFace API: verify MLX tag and return 'lm' or 'multimodal'.
+    Raises IncompatibleModelError if the model has no MLX tag.
+    """
+    if "/" not in model_path:
+        return "lm"  # local model, assume OK
     try:
-         resp = await client.get(f"https://huggingface.co/api/models/{model_path}")
-         if resp.status_code == 200:
-              data = resp.json()
-              pipeline_tag = data.get("pipeline_tag", "")
-              if pipeline_tag == "image-text-to-text":
-                   return "multimodal"
+        resp = await client.get(f"https://huggingface.co/api/models/{model_path}", timeout=6.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            tags = [t.lower() for t in data.get("tags", [])]
+            pipeline_tag = data.get("pipeline_tag", "")
+
+            has_mlx = any("mlx" in t for t in tags)
+            if not has_mlx:
+                raise IncompatibleModelError(
+                    f"Model '{model_path}' does not have an MLX tag on HuggingFace. "
+                    f"Only MLX-format models are compatible with the Bodega Inference Engine."
+                )
+            if pipeline_tag == "image-text-to-text":
+                return "multimodal"
+    except IncompatibleModelError:
+        raise
     except Exception:
-         pass
+        pass
     return "lm"
 
 async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, model_path: str, model_id: str) -> bool:
-    """Helper to dynamically load/unload the model for benchmarks."""
+    """Helper to dynamically load/unload the model for benchmarks with lm→multimodal fallback."""
     full_url = base_url.rstrip("/")
     if action == "load":
         print(f"  [+] Loading model {model_path} into {model_id}...")
-        mtype = await get_model_type(client, model_path)
-        payload = {
-            "model_path": model_path,
-            "model_id": model_id,
-            "model_type": mtype,
-            "context_length": 8192,
-            "continuous_batching": True,
-            "cb_max_num_seqs": 128
-        }
-        resp = await client.post(f"{full_url}/v1/admin/load-model", json=payload, timeout=120.0)
-        if resp.status_code == 409:
-            print(f"      [✓] Model already loaded. Continuing.")
-            return True
-        elif resp.status_code not in [200, 201]:
+
+        try:
+            primary_type = await get_model_type(client, model_path)
+        except IncompatibleModelError as e:
+            print(f"      [!] {e}")
+            return False
+
+        types_to_try = [primary_type, "multimodal" if primary_type == "lm" else "lm"]
+        for mtype in types_to_try:
+            payload = {
+                "model_path": model_path,
+                "model_id": model_id,
+                "model_type": mtype,
+                "context_length": 8192,
+                "continuous_batching": True,
+                "cb_max_num_seqs": 128
+            }
+            resp = await client.post(f"{full_url}/v1/admin/load-model", json=payload, timeout=120.0)
+            if resp.status_code == 409:
+                print(f"      [✓] Model already loaded (as {mtype}). Continuing.")
+                return True
+            if resp.status_code in [200, 201]:
+                print(f"      [✓] Loaded as {mtype}.")
+                return True
+            if resp.status_code == 500:
+                print(f"      [!] Load as '{mtype}' failed, trying next type...")
+                continue
             print(f"      [!] Load failed: {resp.status_code} {resp.text}")
-        return resp.status_code in [200, 201]
+            return False
+
+        print(f"      [!] Could not load '{model_path}' as 'lm' or 'multimodal'. "
+              f"This model may not be compatible with the Bodega Inference Engine.")
+        return False
+
     elif action == "unload":
         print(f"  [-] Unloading model {model_id}...")
         resp = await client.delete(f"{full_url}/v1/admin/unload-model/{model_id}", timeout=30.0)
@@ -402,15 +441,19 @@ async def main() -> None:
 
     concurrencies = [int(x.strip()) for x in args.concurrencies.split(",") if x.strip()]
 
-    print("=" * 70)
+    print("==" * 35)
     print("  bodega_mlx_engine — HTTP Concurrency Benchmark")
-    print("=" * 70)
+    print("==" * 35)
     print(f"  Base URL:    {args.base_url}")
     print(f"  Model:      {args.model}")
     print(f"  Concurrency: {concurrencies}")
     print(f"  Num queries: {args.num_queries} (same for all runs)")
     print(f"  Max tokens:  {args.max_tokens}")
     print(f"  Streaming:   {not args.no_stream}")
+    print()
+
+    print("  [Telemetry] Opening mactop in a new Terminal window...")
+    open_mactop_window()
     print()
 
     # Health check
