@@ -61,23 +61,49 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1.b: Installing Apple Silicon Telemetry Tools${NC}"
-if ! command -v mactop &> /dev/null; then
-    if ! command -v brew &> /dev/null; then
-        echo -e "${YELLOW}Homebrew not found. Installing Homebrew automatically...${NC}"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        # Add brew to path for the rest of the script (common locations)
-        eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)" || eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"
-    fi
-    
-    if command -v brew &> /dev/null; then
-        echo -e "${BLUE}Installing mactop (Real-time Apple Silicon monitor)...${NC}"
-        brew install mactop
-    else
-        echo -e "${RED}Homebrew could not be installed. Skipping mactop installation.${NC}"
-    fi
+echo -e "${YELLOW}Step 1.b: Apple Silicon Telemetry (mactop)${NC}"
+echo -e "  ${BLUE}mactop${NC} is a real-time monitor for Apple Silicon — it shows GPU/CPU/RAM usage"
+echo -e "  and power draw while benchmarks run, so you can see your chip working live."
+
+SKIP_TELEMETRY=0
+
+if command -v mactop &> /dev/null; then
+    echo -e "  ${GREEN}✓ mactop is already installed. Telemetry is ready.${NC}"
 else
-    echo -e "${GREEN}mactop is already installed.${NC}"
+    echo ""
+    read -p "  Would you like to install mactop for live telemetry? [Y/n]: " install_mactop
+    if [[ "$install_mactop" == "n" || "$install_mactop" == "N" ]]; then
+        echo -e "  ${YELLOW}Skipping telemetry. Benchmarks will still run, just without live chip stats.${NC}"
+        SKIP_TELEMETRY=1
+    else
+        if command -v brew &> /dev/null; then
+            # Homebrew already there — just install mactop silently
+            echo -e "  ${BLUE}Installing mactop via Homebrew...${NC}"
+            brew install mactop
+            echo -e "  ${GREEN}✓ mactop installed.${NC}"
+        else
+            echo ""
+            echo -e "  ${YELLOW}Homebrew is a package manager for macOS — needed to install mactop.${NC}"
+            echo -e "  It's safe, widely used, and takes ~1-2 minutes to install."
+            read -p "  Install Homebrew now? [Y/n]: " install_brew
+            if [[ "$install_brew" == "n" || "$install_brew" == "N" ]]; then
+                echo -e "  ${YELLOW}Skipping Homebrew & mactop. Telemetry will be unavailable.${NC}"
+                SKIP_TELEMETRY=1
+            else
+                echo -e "  ${BLUE}Installing Homebrew...${NC}"
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)" || eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"
+                if command -v brew &> /dev/null; then
+                    echo -e "  ${BLUE}Installing mactop...${NC}"
+                    brew install mactop
+                    echo -e "  ${GREEN}✓ mactop installed.${NC}"
+                else
+                    echo -e "  ${RED}Homebrew installation failed. Skipping mactop.${NC}"
+                    SKIP_TELEMETRY=1
+                fi
+            fi
+        fi
+    fi
 fi
 
 echo ""
@@ -280,6 +306,9 @@ echo "3) No, just let me use the Interactive Chat Shell!"
 echo "4) Skip"
 read -p "Select an option [1-4]: " run_bench
 
+# Export telemetry preference so benchmark scripts can respect it
+export BODEGA_SKIP_TELEMETRY=$SKIP_TELEMETRY
+
 if [[ "$run_bench" == "1" ]]; then
     echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
     if [[ "$IS_MULTIMODAL" == "1" ]]; then
@@ -303,3 +332,4 @@ else
     echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (for config benchmarking)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (for live chat and visuals)"
 fi
+

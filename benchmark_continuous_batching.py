@@ -14,6 +14,7 @@ import statistics
 import sys
 import time
 import subprocess
+import shutil
 import os
 from dataclasses import dataclass, field
 from typing import List
@@ -154,12 +155,18 @@ class IncompatibleModelError(Exception):
     pass
 
 def open_mactop_window():
-    """Opens mactop in a new Terminal window side-by-side via osascript."""
+    """Opens mactop in a new Terminal window side-by-side via osascript.
+    Skipped if BODEGA_SKIP_TELEMETRY=1 (user opted out during setup)."""
+    if os.environ.get("BODEGA_SKIP_TELEMETRY") == "1":
+        print("  [Telemetry] Skipped (user opted out during setup).")
+        return
+    if not shutil.which("mactop"):
+        print("  [Telemetry] mactop not found — skipping telemetry window.")
+        return
     script = 'tell application "Terminal" to do script "mactop"'
     ret = os.system(f"osascript -e '{script}' >/dev/null 2>&1")
     if ret != 0:
-        # Fallback: silent, don't block the benchmark
-        pass
+        pass  # Silent — don't block the benchmark
 
 async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
     """Check HuggingFace API: verify MLX tag and return 'lm' or 'multimodal'.
