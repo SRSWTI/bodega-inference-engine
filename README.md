@@ -404,17 +404,20 @@ Pass images alongside text prompts for models with vision capabilities such as `
 ```bash
 curl -X POST http://localhost:44468/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "bodega-solomon-9b",
+  -d '{ 
+    "model": "srswti/bodega-solomon-9b", 
     "messages": [
       {
         "role": "user",
         "content": [
-          {"type": "text", "text": "What is in this image? Provide a detailed description."},
+          {
+            "type": "text",
+            "text": "What is in this image? Provide a detailed description."
+          },
           {
             "type": "image_url",
             "image_url": {
-              "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+              "url": "https://weblog.spots.ag/08-2018/aventador_svj_official/th.jpg"
             }
           }
         ]
@@ -422,6 +425,7 @@ curl -X POST http://localhost:44468/v1/chat/completions \
     ],
     "max_tokens": 300
   }'
+
 ```
 
 #### Local Base64 Image
