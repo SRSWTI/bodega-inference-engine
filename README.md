@@ -1,12 +1,20 @@
-# Bodega Inference Engine
+### What we recommend
 
-A high-performance local inference server running on `localhost:44468`, providing OpenAI-compatible endpoints for language models, multimodal models, and image generation.
+The easiest way to get started is by using our interactive setup script. It will configure telemetry tools, download your first model, and let you test the engine's capabilities via benchmarks or the interactive chat shell.
+
+```bash
+# Make the script executable
+chmod +x setup.sh
+
+# Run the interactive setup, honestly this is the best way to get started
+./setup.sh
+```
 
 ---
 
-## Overview
+# Bodega Inference Engine
 
-Bodega Inference Engine delivers enterprise-grade AI inference directly on your machine. Built specifically for Apple Silicon, it provides a seamless OpenAI-compatible API while keeping your data private and your costs predictable.
+Bodega Inference Engine delivers enterprise-grade inference directly on your machine. Built specifically for Apple Silicon, it provides a seamless OpenAI-compatible API while keeping your data private and your costs predictable.
 
 **Server Address:** `http://localhost:44468`  
 **Architecture:** Multi-process isolated handler architecture prevents Metal memory leaks.
@@ -17,7 +25,7 @@ As of the latest release, Bodega is a **multi-model registry** — you can load,
 - Multi-model registry with dynamic loading and unloading
 - Language model inference with streaming support
 - Multimodal language model support (vision)
-- Image generation via MLX Flux (live next week, week of March 17)
+- Image generation (live next week, week of March 17)
 - Image editing (live next week, week of March 17)
 - Structured output via JSON schema constraints
 - Speculative decoding for accelerated generation
@@ -46,7 +54,7 @@ As of the latest release, Bodega is a **multi-model registry** — you can load,
 
 ## Getting Started
 
-### Quick Start (Single Model)
+### Quick Start (Manual via API)
 
 Start the server and load your first model:
 
