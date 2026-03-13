@@ -1,6 +1,6 @@
 ### What we recommend
 
-The easiest way to get started is by using our interactive setup script. It will configure telemetry tools, download your first model, and let you test the engine's capabilities via benchmarks or the interactive chat shell.
+The easiest way to get started is by using our interactive setup script. It will configure terminal-based monitoring tool, download your first model, and let you test the engine's capabilities via benchmarks or the interactive chat shell.
 
 ```bash
 # Make the script executable
@@ -14,9 +14,8 @@ chmod +x setup.sh
 
 # Bodega Inference Engine
 
-Bodega Inference Engine delivers enterprise-grade inference directly on your machine. Built specifically for Apple Silicon, it provides a seamless OpenAI-compatible API while keeping your data private and your costs predictable.
+Bodega Inference Engine delivers enterprise-grade inference directly on your machine. Built specifically for Apple Silicon, it provides a seamless runtime with openai-compatible api which is faster, more memory efficient and intuitive than any other runtime available out there.
 
-**Server Address:** `http://localhost:44468`  
 **Architecture:** Multi-process isolated handler architecture prevents Metal memory leaks.
 
 As of the latest release, Bodega is a **multi-model registry** — you can load, route to, and unload multiple models simultaneously, each running in its own hardware-isolated subprocess. The engine automatically handles resource allocation and delivers the fastest possible inference on Apple Silicon.
@@ -91,9 +90,9 @@ The standard way to run multiple models is to keep calling the `/v1/admin/load-m
 curl -X POST http://localhost:44468/v1/admin/load-model \
   -H "Content-Type: application/json" \
   -d '{
-    "model_id": "bodega-raptor-0.9b",
+    "model_id": "bodega-raptor-90m",
     "model_type": "lm",
-    "model_path": "srswti/bodega-raptor-0.9b"
+    "model_path": "srswti/bodega-raptor-90m"
   }'
 
 # Load a multimodal model alongside it
@@ -103,6 +102,19 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
     "model_id": "srswti/bodega-solomon-9b",
     "model_type": "multimodal",
     "model_path": "srswti/bodega-solomon-9b"
+  }'
+
+# Load our favourite model alongside it :)
+curl -X POST http://localhost:44468/v1/admin/load-model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "blackbird",
+    "model_type": "lm",
+    "model_path": "srswti/blackbird-she-doesnt-refuse-21b",
+    "context_length": 32768,
+    "max_concurrency": 1,
+    "reasoning_parser": "harmony",
+    "tool_call_parser": "harmony"
   }'
 
 # Check what's running
@@ -476,15 +488,6 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
     "model_type": "image-generation",
     "config_name": "keshav"
   }'
-
-# Kalamkari — Qwen-based image generation
-curl -X POST http://localhost:44468/v1/admin/load-model \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model_id": "kalamkari",
-    "model_type": "image-generation",
-    "config_name": "kalamkari"
-  }'
 ```
 
 Then generate:
@@ -537,8 +540,6 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
   }'
 ```
 
-Available `config_name` values for image editing: `flux-kontext-dev`, `flux2-klein-edit-4b`, `flux2-klein-edit-9b`, `qwen-image-edit`.
-
 
 ## Model Management
 
@@ -572,7 +573,6 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
   -H "Content-Type: application/json" \
   -d '{
     "model_path": "srswti/solomon",
-    "model_id": "flux-local",
     "model_type": "image-generation",
     "config_name": "solomon",
     "quantize": 8
@@ -733,7 +733,7 @@ for model in models:
     print(f"[{model['status'].upper()}] {model['id']} — PID: {model['pid']}")
     mem = model.get('memory', {})
     print(f"  └ Metal Active (GPU): {mem.get('metal_active_mb', 0):.1f} MB")
-    print(f"  └ Python Overhead (CPU): {mem.get('rss_mb', 0):.1f} MB")
+    print(f"  └ Process RSS overhead (CPU): {mem.get('rss_mb', 0):.1f} MB")
     print(f"  └ Total System Pool: {mem.get('total_mb', 0):.1f} MB\n")
 ```
 
