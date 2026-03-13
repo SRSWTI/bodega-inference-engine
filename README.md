@@ -54,13 +54,11 @@ As of the latest release, Bodega is a **multi-model registry** — you can load,
 
 ## Getting Started
 
-### Quick Start (Manual via API)
+### Quick Implement
 
 Start the server and load your first model:
 
 ```bash
-# Start the server
-python -m bodega_mlx_engine.main launch --model srswti/bodega-raptor-8b-mxfp4
 
 # Or dynamically load a model via API
 curl -X POST http://localhost:44468/v1/admin/load-model \
@@ -79,7 +77,7 @@ curl -X POST http://localhost:44468/v1/chat/completions \
   -d '{
     "model": "bodega-raptor-8b",
     "messages": [
-      {"role": "user", "content": "Hello, how are you?"}
+      {"role": "user", "content": "Hello, welcome to the world of dreamers?"}
     ]
   }'
 ```
@@ -139,9 +137,9 @@ You can also load any HuggingFace model directly — not just SRSWTI models. For
 curl -X POST http://localhost:44468/v1/admin/load-model \
   -H "Content-Type: application/json" \
   -d '{
-    "model_id": "mlx-community/Qwen3.5-27B-4bit",
-    "model_type": "multimodal",
-    "model_path": "mlx-community/Qwen3.5-27B-4bit",
+    "model_id": "Qwen/Qwen3-30B-A3B-MLX-4bit",
+    "model_type": "lm",
+    "model_path": "Qwen/Qwen3-30B-A3B-MLX-4bit",
     "max_concurrency": 1,
     "queue_timeout": 300,
     "queue_size": 100,
@@ -155,9 +153,9 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
 ```json
 {
   "status": "loaded",
-  "model_id": "mlx-community/Qwen3.5-27B-4bit",
-  "model_path": "mlx-community/Qwen3.5-27B-4bit",
-  "model_type": "multimodal"
+  "model_id": "Qwen/Qwen3-30B-A3B-MLX-4bit",
+  "model_path": "Qwen/Qwen3-30B-A3B-MLX-4bit",
+  "model_type": "lm"
 }
 ```
 
@@ -453,7 +451,8 @@ print(response.json()["choices"][0]["message"]["content"])
 
 Generate images from text prompts using locally-running image models.
 
-> **Coming week of March 17.**
+> **Coming week of March 17.** 
+Right now its a experimental release
 
 **Endpoint:** `POST /v1/images/generations`
 
@@ -540,65 +539,6 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
 
 Available `config_name` values for image editing: `flux-kontext-dev`, `flux2-klein-edit-4b`, `flux2-klein-edit-9b`, `qwen-image-edit`.
 
-### Document Indexing (RAG)
-
-Bodega includes a fully self-contained RAG pipeline for PDF documents using a lightweight local embedding model (`all-MiniLM-L6-v2`) and FAISS for on-disk vector storage.
-
-#### Upload & Index a PDF
-
-**Endpoint:** `POST /v1/rag/upload`
-
-```bash
-curl -X POST http://localhost:44468/v1/rag/upload \
-  -F "file=@/path/to/your/document.pdf"
-```
-
-**Response:**
-```json
-{
-  "file_id": "rag-c6cd8f10",
-  "filename": "document.pdf",
-  "num_chunks": 71,
-  "status": "indexed"
-}
-```
-
-#### Query an Indexed PDF
-
-The engine embeds your question, retrieves the most relevant chunks via FAISS cosine-similarity, and passes the context alongside your query to the active chat model.
-
-**Endpoint:** `POST /v1/rag/query`
-
-```bash
-curl -X POST http://localhost:44468/v1/rag/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "file_id": "rag-c6cd8f10",
-    "query": "What is the main conclusion of this document?",
-    "model": "bodega-raptor-8b",
-    "top_k": 5
-  }'
-```
-
-Add `"stream": true` to receive the answer as a Server-Sent Events stream, identical to the standard `/v1/chat/completions` endpoint.
-
-#### List Indexed Documents
-
-**Endpoint:** `GET /v1/rag/documents`
-
-```bash
-curl http://localhost:44468/v1/rag/documents
-```
-
-#### Delete an Indexed Document
-
-**Endpoint:** `DELETE /v1/rag/documents/{file_id}`
-
-```bash
-curl -X DELETE http://localhost:44468/v1/rag/documents/rag-c6cd8f10
-```
-
----
 
 ## Model Management
 
@@ -1062,7 +1002,7 @@ The response format is identical to a standard completion — no extra fields, n
 
 ### Continuous Batching (High Throughput)
 
-Bodega's continuous batching engine maximizes throughput for multi-user workloads on Apple Silicon. It is the primary mechanism for serving multiple concurrent users efficiently, and the numbers are dramatic — small SRSWTI models and community models like `mlx-community/Qwen3.5-2B-6bit` approach **~900 tok/s system throughput** on an m4 Max when measured in-process. At the HTTP server layer, measured throughput currently reaches **~600 tok/s** — the gap is not the inference engine, it is the HTTP serialization layer, and we are actively working to close it. See the [HTTP Bottleneck](#the-http-bottleneck) section below for details.
+Bodega's continuous batching engine maximizes throughput for multi-user workloads on Apple Silicon. It is the primary mechanism for serving multiple concurrent users efficiently, and the numbers are dramatic — small SRSWTI models and community models like `mlx-community/Qwen3.5-2B-6bit` approach **~900 tok/s system throughput** on an m1 Max when measured in-process. At the HTTP server layer, measured throughput currently reaches **~600 tok/s** — the gap is not the inference engine, it is the HTTP serialization layer, and we are actively working to close it. See the [HTTP Bottleneck](#the-http-bottleneck) section below for details.
 
 #### How It Works
 
@@ -1082,7 +1022,7 @@ This is called "continuous" because requests enter and exit the active GPU batch
 
 The difference is most visible in TTFT (time to first token) under concurrent load. In sequential mode, request 8 waits for requests 1–7 to finish — TTFT grows linearly with queue depth. In continuous batching, all requests are injected into the active batch and begin generating almost immediately.
 
-Benchmarked on the **blackbird-she-doesnt-refuse-21b** model:
+Benchmarked on the **blackbird-she-doesnt-refuse-21b** model on M1 MAX 64gb:
 
 | Concurrency | Sequential Mean TTFT | CB Mean TTFT | Sequential Throughput | CB Throughput |
 |-------------|----------------------|--------------|-----------------------|---------------|
@@ -1353,8 +1293,14 @@ print(f"Active requests: {stats.get('active_requests', 0)}")
 
 ### Model Selection
 
+---
+
+**Our Open source Work**
+- **Explore our Models:** [Hugging Face](https://huggingface.co/srswti)
+- **Coding CLI:** [axe on GitHub](https://github.com/SRSWTI/axe)
+
 **Fastest (edge/laptop):**
-- `SRSWTI/bodega-raptor-90m` — Sub-100M params, exceptional tool calling and reasoning at the edge
+- `SRSWTI/bodega-raptor-90m` — Sub-100M params, exceptional tool calling and reasoning at the edgehttps://huggingface.co/srswti
 - `SRSWTI/bodega-raptor-0.9b` — 400+ tok/s, ideal for classification and query reformulation
 - `SRSWTI/axe-turbo-1b` — Sub-50ms first token, edge-first agentic coding
 
@@ -1406,7 +1352,65 @@ elif response.status_code == 200:
 else:
     print(f"Error: {response.status_code}")
 ```
+### Document Indexing (RAG)
 
+Bodega includes a fully self-contained RAG pipeline for PDF documents
+
+#### Upload & Index a PDF
+
+**Endpoint:** `POST /v1/rag/upload`
+
+```bash
+curl -X POST http://localhost:44468/v1/rag/upload \
+  -F "file=@/path/to/your/document.pdf"
+```
+
+**Response:**
+```json
+{
+  "file_id": "rag-c6cd8f10",
+  "filename": "document.pdf",
+  "num_chunks": 71,
+  "status": "indexed"
+}
+```
+
+#### Query an Indexed PDF
+
+The engine embeds your question, retrieves the most relevant chunks via FAISS cosine-similarity, and passes the context alongside your query to the active chat model.
+
+**Endpoint:** `POST /v1/rag/query`
+
+```bash
+curl -X POST http://localhost:44468/v1/rag/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_id": "rag-c6cd8f10",
+    "query": "What is the main conclusion of this document?",
+    "model": "bodega-raptor-8b",
+    "top_k": 5
+  }'
+```
+
+Add `"stream": true` to receive the answer as a Server-Sent Events stream, identical to the standard `/v1/chat/completions` endpoint.
+
+#### List Indexed Documents
+
+**Endpoint:** `GET /v1/rag/documents`
+
+```bash
+curl http://localhost:44468/v1/rag/documents
+```
+
+#### Delete an Indexed Document
+
+**Endpoint:** `DELETE /v1/rag/documents/{file_id}`
+
+```bash
+curl -X DELETE http://localhost:44468/v1/rag/documents/rag-c6cd8f10
+```
+
+---
 ### Security
 
 - The server runs on `localhost:44468` only and is not accessible from external networks
