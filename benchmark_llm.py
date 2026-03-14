@@ -452,31 +452,31 @@ class IncompatibleModelError(Exception):
     pass
 
 
-async def _hf_model_type(client: httpx.AsyncClient, model_path: str) -> str:
-    """Resolve HuggingFace pipeline_tag → bodega model_type.
-    Raises IncompatibleModelError if the model lacks an mlx tag.
-    """
+def _model_type_from_config(model_path: str) -> str:
+    """Detect model_type from config.json (lm | multimodal | whisper | embeddings)."""
+    from detect_model_type import detect_model_type
+    return detect_model_type(model_path)
+
+
+async def _check_mlx_tag(client: httpx.AsyncClient, model_path: str) -> None:
+    """Verify model has MLX tag on HuggingFace. Raises IncompatibleModelError if not."""
     if "/" not in model_path:
-        return "lm"
+        return
     try:
         resp = await client.get(
             f"https://huggingface.co/api/models/{model_path}", timeout=8.0
         )
         if resp.status_code == 200:
-            info = resp.json()
-            tags = [t.lower() for t in info.get("tags", [])]
+            tags = [t.lower() for t in resp.json().get("tags", [])]
             if not any("mlx" in t for t in tags):
                 raise IncompatibleModelError(
                     f"'{model_path}' has no MLX tag on HuggingFace — only MLX-format "
                     "models are compatible with the Bodega Inference Engine."
                 )
-            if info.get("pipeline_tag") == "image-text-to-text":
-                return "multimodal"
     except IncompatibleModelError:
         raise
     except Exception:
         pass
-    return "lm"
 
 
 async def load_model(
@@ -493,11 +493,12 @@ async def load_model(
 ) -> bool:
     url = f"{base_url}/v1/admin/load-model"
     try:
-        model_type = await _hf_model_type(client, model_path)
+        await _check_mlx_tag(client, model_path)
     except IncompatibleModelError as exc:
         print(f"\n  ✗ {exc}")
         return False
 
+    model_type = _model_type_from_config(model_path)
     payload: dict[str, Any] = {
         "model_path": model_path,
         "model_id": model_id,

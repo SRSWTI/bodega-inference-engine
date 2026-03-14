@@ -200,19 +200,9 @@ def stream_download():
         console.print(f"\n[red]Error mapping download stream: {e}[/red]")
 
 def get_model_type(model_path: str) -> str:
-    """Check HuggingFace API to see if the model needs multimodal or lm."""
-    if not "/" in model_path:
-         return "lm"
-    try:
-         resp = httpx.get(f"https://huggingface.co/api/models/{model_path}", timeout=5.0)
-         if resp.status_code == 200:
-              data = resp.json()
-              pipeline_tag = data.get("pipeline_tag", "")
-              if pipeline_tag == "image-text-to-text":
-                   return "multimodal"
-    except Exception:
-         pass
-    return "lm"
+    """Detect model_type from config.json (lm | multimodal | whisper | embeddings)."""
+    from detect_model_type import detect_model_type
+    return detect_model_type(model_path)
 
 def load_model():
     console.print("\n[bold cyan][+][/bold cyan] Dynamically Load a Model")
@@ -461,54 +451,45 @@ def live_continuous_batching():
     console.print("  [dim]Opening mactop telemetry window...[/dim]")
     os.system("osascript -e 'tell application \"Terminal\" to do script \"mactop\"' >/dev/null 2>&1")
     
-    # Auto-load the model with lm→multimodal fallback
+    # Auto-load the model (config.json-based detection — no retry)
     console.print(f"  [cyan]Loading model {mid}...[/cyan]")
+    mtype = get_model_type(mid)
+    console.print(f"  [dim]-> Detected model_type from config.json: {mtype}[/dim]")
     load_ok = False
-    mtype_detected = get_model_type(mid)
-    types_to_try = [mtype_detected, "multimodal" if mtype_detected == "lm" else "lm"]
-    for attempt_type in types_to_try:
-        console.print(f"  [dim]-> Applying Continuous Batching configs for model_type '{attempt_type}'...[/dim]")
-        try:
-            r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
-                "model_path": mid, "model_id": mid,
-                "model_type": attempt_type,
-                "continuous_batching": True,
-                "cb_max_num_seqs": 128,
-                "context_length": 8192
-            }, timeout=120)
-            if r.status_code == 409:
-                console.print(f"  [green]✓ Already loaded (as {attempt_type})[/green]")
-                if attempt_type == "multimodal":
-                    console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                                  "    The engine currently falls back to sequential execution for vision models.[/yellow]")
-                    if not Confirm.ask("  Continue anyway?", default=True):
-                        return
-                load_ok = True
-                break
-            elif r.status_code in [200, 201]:
-                console.print(f"  [green]✓ Loaded as {attempt_type}[/green]")
-                if attempt_type == "multimodal":
-                    console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                                  "    The engine currently falls back to sequential execution for vision models.[/yellow]")
-                    if not Confirm.ask("  Continue anyway?", default=True):
-                        return
-                load_ok = True
-                break
-            elif r.status_code == 500:
-                console.print(f"  [yellow]Load as '{attempt_type}' failed (500), trying next...[/yellow]")
-                continue
-            else:
-                try:
-                    err = r.json()
-                    msg = err.get("error", {}).get("message", r.text[:120])
-                except Exception:
-                    msg = r.text[:120]
-                console.print(f"  [red]failed ({r.status_code}): {msg}[/red]")
-                break
-        except Exception as e:
-            console.print(f"  [red]Error: {e}[/red]")
-            break
-    
+    try:
+        r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
+            "model_path": mid, "model_id": mid,
+            "model_type": mtype,
+            "continuous_batching": True,
+            "cb_max_num_seqs": 128,
+            "context_length": 8192
+        }, timeout=120)
+        if r.status_code == 409:
+            console.print(f"  [green]✓ Already loaded (as {mtype})[/green]")
+            if mtype == "multimodal":
+                console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                              "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                if not Confirm.ask("  Continue anyway?", default=True):
+                    return
+            load_ok = True
+        elif r.status_code in [200, 201]:
+            console.print(f"  [green]✓ Loaded as {mtype}[/green]")
+            if mtype == "multimodal":
+                console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                              "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                if not Confirm.ask("  Continue anyway?", default=True):
+                    return
+            load_ok = True
+        else:
+            try:
+                err = r.json()
+                msg = err.get("error", {}).get("message", r.text[:120])
+            except Exception:
+                msg = r.text[:120]
+            console.print(f"  [red]failed ({r.status_code}): {msg}[/red]")
+    except Exception as e:
+        console.print(f"  [red]Error: {e}[/red]")
+
     if not load_ok:
         console.print("  [red]✗ This model could not be loaded as 'lm' or 'multimodal'. "
                       "Ensure it has an MLX tag on HuggingFace to be compatible with the Bodega Inference Engine.[/red]")
@@ -636,8 +617,8 @@ variables or args depending on the entry point wrapper.
 def run_compare_engines():
     console.print("\n[bold cyan][+] Compare Engines (LM Studio vs Bodega)[/bold cyan]")
     console.print("")
-    console.print("[bold yellow]⚠  For fair benchmarks: Load the model in LM Studio with max_concurrency=32[/bold yellow]")
-    console.print("[bold yellow]   (LM Studio's batching config). Bodega is auto-loaded with CB by the script.[/bold yellow]")
+    console.print("[dim]This will download the model in LM Studio (if needed), then prompt you to confirm[/dim]")
+    console.print("[dim]you loaded it with 'Max Concurrent Predictions' = 32. Bodega is auto-loaded with CB.[/dim]")
     console.print("")
 
     default_model = "srswti/bodega-raptor-90m"

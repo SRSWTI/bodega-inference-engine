@@ -107,6 +107,39 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}Step 1.c: Python Dependencies${NC}"
+echo -e "  ${BLUE}Ensuring Python packages (httpx, huggingface_hub, rich, etc.) are installed...${NC}"
+BODEGA_TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$BODEGA_TESTS_DIR"
+if [ -f "requirements.txt" ]; then
+    if [ -d ".venv" ]; then
+        echo -e "  ${GREEN}✓ Using existing .venv${NC}"
+        source .venv/bin/activate
+    else
+        echo -e "  ${BLUE}Creating .venv and installing packages...${NC}"
+        python3 -m venv .venv
+        source .venv/bin/activate
+        pip install -q --upgrade pip
+        pip install -q -r requirements.txt
+        echo -e "  ${GREEN}✓ Packages installed${NC}"
+    fi
+    # Ensure we use this venv for subsequent python calls in this script
+    export VIRTUAL_ENV="$BODEGA_TESTS_DIR/.venv"
+    export PATH="$VIRTUAL_ENV/bin:$PATH"
+else
+    echo -e "  ${YELLOW}requirements.txt not found — skipping venv setup.${NC}"
+    echo -e "  ${YELLOW}Install manually: pip install httpx huggingface_hub rich tabulate loguru${NC}"
+fi
+
+echo ""
+echo -e "${YELLOW}Step 1.d: Hardware Detection${NC}"
+if HW_STR=$(python3 hardware_info.py 2>/dev/null); then
+    echo -e "  ${GREEN}✓ Detected: ${HW_STR}${NC}"
+else
+    echo -e "  ${YELLOW}(Could not detect hardware — ensure psutil is installed)${NC}"
+fi
+
+echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
 echo "Which model(s) would you like to download?"
 echo "1) Bodega Raptor 90M (srswti/bodega-raptor-90m) - Ultra-fast, great for continuous batching tests"
@@ -206,12 +239,23 @@ TARGET_MODEL=${MODELS[0]}
 # ─── Load model and inspect what adapter type the engine assigns ───────────────
 echo -e "${YELLOW}Loading and inspecting model adapter type...${NC}"
 
-# Write the inspector to a temp file to avoid shell quoting hell
+# Write the inspector to a temp file. Uses detect_model_type.py (config.json) to detect
+# model_type before load — no lm→multimodal retry.
+BODEGA_TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 cat > /tmp/bodega_model_inspect.py << 'PYEOF'
 import sys, json, httpx, time
 
+# Add bodega_engine_tests to path for detect_model_type (passed as argv[2])
+if len(sys.argv) >= 3:
+    sys.path.insert(0, sys.argv[2])
+from detect_model_type import detect_model_type
+
 BASE = "http://localhost:44468"
 model_id = sys.argv[1]
+
+# Detect model_type from config.json — no retry
+mtype = detect_model_type(model_id)
+print(f"  [->] Detected model_type from config.json: {mtype}", flush=True)
 
 def load_model(mtype):
     try:
@@ -226,21 +270,13 @@ def load_model(mtype):
     except Exception:
         return 0
 
-# Step 1: Try loading as lm
-print(f"  [->] Trying to load '{model_id}' as lm...", flush=True)
-code = load_model("lm")
+code = load_model(mtype)
 if code in [200, 201, 409]:
-    print(f"  [ok] Loaded as lm (status={code})", flush=True)
+    print(f"  [ok] Loaded as {mtype} (status={code})", flush=True)
 else:
-    # Step 2: Fallback to multimodal
-    print(f"  [!] lm load failed (status={code}), trying multimodal...", flush=True)
-    code = load_model("multimodal")
-    if code in [200, 201, 409]:
-        print(f"  [ok] Loaded as multimodal (status={code})", flush=True)
-    else:
-        print(f"  [!] Both lm and multimodal load failed. Proceeding with inspection.", flush=True)
+    print(f"  [!] Load failed (status={code}). Proceeding with inspection.", flush=True)
 
-# Step 3: Wait for engine to settle, then read actual adapter type
+# Wait for engine to settle, then read actual adapter type
 time.sleep(1)
 try:
     r = httpx.get(f"{BASE}/v1/admin/loaded-models", timeout=5)
@@ -265,7 +301,7 @@ except Exception:
 PYEOF
 
 # Run it and capture only the KEY=VALUE lines into shell vars
-eval "$(python3 /tmp/bodega_model_inspect.py "$TARGET_MODEL" 2>&1 | grep -E '^(MODEL_TYPE|RSS_MB|METAL_MB|TOTAL_MB|PID_VAL)=')"
+eval "$(python3 /tmp/bodega_model_inspect.py "$TARGET_MODEL" "$BODEGA_TESTS_DIR" 2>&1 | grep -E '^(MODEL_TYPE|RSS_MB|METAL_MB|TOTAL_MB|PID_VAL)=')"
 
 
 echo ""

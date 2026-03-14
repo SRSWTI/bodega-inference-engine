@@ -168,81 +168,69 @@ def open_mactop_window():
     if ret != 0:
         pass  # Silent — don't block the benchmark
 
-async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
-    """Check HuggingFace API: verify MLX tag and return 'lm' or 'multimodal'.
-    Raises IncompatibleModelError if the model has no MLX tag.
-    """
+def get_model_type(model_path: str) -> str:
+    """Detect model_type from config.json (lm | multimodal | whisper | embeddings)."""
+    from detect_model_type import detect_model_type
+    return detect_model_type(model_path)
+
+
+async def _check_mlx_tag(client: httpx.AsyncClient, model_path: str) -> None:
+    """Verify model has MLX tag on HuggingFace. Raises IncompatibleModelError if not."""
     if "/" not in model_path:
-        return "lm"  # local model, assume OK
+        return
     try:
         resp = await client.get(f"https://huggingface.co/api/models/{model_path}", timeout=6.0)
         if resp.status_code == 200:
-            data = resp.json()
-            tags = [t.lower() for t in data.get("tags", [])]
-            pipeline_tag = data.get("pipeline_tag", "")
-
-            has_mlx = any("mlx" in t for t in tags)
-            if not has_mlx:
+            tags = [t.lower() for t in resp.json().get("tags", [])]
+            if not any("mlx" in t for t in tags):
                 raise IncompatibleModelError(
                     f"Model '{model_path}' does not have an MLX tag on HuggingFace. "
                     f"Only MLX-format models are compatible with the Bodega Inference Engine."
                 )
-
-            if pipeline_tag == "image-text-to-text":
-                return "multimodal"
     except IncompatibleModelError:
         raise
     except Exception:
         pass
-    return "lm"
+
 
 async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, model_path: str, model_id: str, **kwargs) -> bool:
+    """Load/unload model. Uses config.json for model_type — no lm→multimodal retry."""
     if action == "load":
         url = f"{base_url.rstrip('/')}/v1/admin/load-model"
 
         try:
-            primary_type = await get_model_type(client, model_path)
+            await _check_mlx_tag(client, model_path)
         except IncompatibleModelError as e:
             print(f"\n  ✗ {e}")
             return False
 
-        # Try primary detected type, then fallback to the other
-        types_to_try = [primary_type, "multimodal" if primary_type == "lm" else "lm"]
-        for mtype in types_to_try:
-            payload = {"model_path": model_path, "model_id": model_id, "model_type": mtype, "context_length": 8192}
-            payload.update(kwargs)
-            resp = await client.post(url, json=payload, timeout=120.0)
-            if resp.status_code == 409:
-                print(f"  (Already loaded as {mtype})", flush=True)
-                if mtype == "multimodal" and kwargs.get("continuous_batching"):
-                    print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                          "      The engine currently falls back to sequential execution for vision models.", flush=True)
-                    choice = input("      Continue anyway? [y/N]: ")
-                    if choice.lower() not in ['y', 'yes']:
-                        return False
-                return True
-            if resp.status_code in [200, 201]:
-                print(f"  (Loaded as {mtype})", flush=True)
-                if mtype == "multimodal" and kwargs.get("continuous_batching"):
-                    print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                          "      The engine currently falls back to sequential execution for vision models.", flush=True)
-                    choice = input("      Continue anyway? [y/N]: ")
-                    if choice.lower() not in ['y', 'yes']:
-                        return False
-                return True
-            if resp.status_code == 500:
-                # Try next type
-                continue
-            # Any other error (4xx etc.) — fatal
-            try:
-                msg = resp.json().get("error", {}).get("message", resp.text[:120])
-            except Exception:
-                msg = resp.text[:120]
-            print(f"  ✗ Load failed ({resp.status_code}): {msg}")
-            return False
-
-        print(f"  ✗ Model '{model_path}' could not be loaded as 'lm' or 'multimodal'. "
-              f"This model may not be compatible with the Bodega Inference Engine.")
+        mtype = get_model_type(model_path)
+        payload = {"model_path": model_path, "model_id": model_id, "model_type": mtype, "context_length": 8192}
+        payload.update(kwargs)
+        resp = await client.post(url, json=payload, timeout=120.0)
+        if resp.status_code == 409:
+            print(f"  (Already loaded as {mtype})", flush=True)
+            if mtype == "multimodal" and kwargs.get("continuous_batching"):
+                print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                      "      The engine currently falls back to sequential execution for vision models.", flush=True)
+                choice = input("      Continue anyway? [y/N]: ")
+                if choice.lower() not in ['y', 'yes']:
+                    return False
+            return True
+        if resp.status_code in [200, 201]:
+            print(f"  (Loaded as {mtype})", flush=True)
+            if mtype == "multimodal" and kwargs.get("continuous_batching"):
+                print("\n  [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                      "      The engine currently falls back to sequential execution for vision models.", flush=True)
+                choice = input("      Continue anyway? [y/N]: ")
+                if choice.lower() not in ['y', 'yes']:
+                    return False
+            return True
+        try:
+            msg = resp.json().get("error", {}).get("message", resp.text[:120])
+        except Exception:
+            msg = resp.text[:120]
+        print(f"  ✗ Load failed ({resp.status_code}): {msg}")
         return False
 
     elif action == "unload":

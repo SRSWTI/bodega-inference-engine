@@ -258,82 +258,73 @@ def open_mactop_window():
     script = 'tell application "Terminal" to do script "mactop"'
     os.system(f"osascript -e '{script}' >/dev/null 2>&1")
 
-async def get_model_type(client: httpx.AsyncClient, model_path: str) -> str:
-    """Check HuggingFace API: verify MLX tag and return 'lm' or 'multimodal'.
-    Raises IncompatibleModelError if the model has no MLX tag.
-    """
+def get_model_type(model_path: str) -> str:
+    """Detect model_type from config.json (lm | multimodal | whisper | embeddings)."""
+    from detect_model_type import detect_model_type
+    return detect_model_type(model_path)
+
+
+async def _check_mlx_tag(client: httpx.AsyncClient, model_path: str) -> None:
+    """Verify model has MLX tag on HuggingFace. Raises IncompatibleModelError if not."""
     if "/" not in model_path:
-        return "lm"  # local model, assume OK
+        return
     try:
         resp = await client.get(f"https://huggingface.co/api/models/{model_path}", timeout=6.0)
         if resp.status_code == 200:
-            data = resp.json()
-            tags = [t.lower() for t in data.get("tags", [])]
-            pipeline_tag = data.get("pipeline_tag", "")
-
-            has_mlx = any("mlx" in t for t in tags)
-            if not has_mlx:
+            tags = [t.lower() for t in resp.json().get("tags", [])]
+            if not any("mlx" in t for t in tags):
                 raise IncompatibleModelError(
                     f"Model '{model_path}' does not have an MLX tag on HuggingFace. "
                     f"Only MLX-format models are compatible with the Bodega Inference Engine."
                 )
-            if pipeline_tag == "image-text-to-text":
-                return "multimodal"
     except IncompatibleModelError:
         raise
     except Exception:
         pass
-    return "lm"
+
 
 async def manage_model(client: httpx.AsyncClient, base_url: str, action: str, model_path: str, model_id: str) -> bool:
-    """Helper to dynamically load/unload the model for benchmarks with lm→multimodal fallback."""
+    """Helper to dynamically load/unload the model. Uses config.json for model_type — no retry."""
     full_url = base_url.rstrip("/")
     if action == "load":
         print(f"  [+] Loading model {model_path} into {model_id}...")
 
         try:
-            primary_type = await get_model_type(client, model_path)
+            await _check_mlx_tag(client, model_path)
         except IncompatibleModelError as e:
             print(f"      [!] {e}")
             return False
 
-        types_to_try = [primary_type, "multimodal" if primary_type == "lm" else "lm"]
-        for mtype in types_to_try:
-            payload = {
-                "model_path": model_path,
-                "model_id": model_id,
-                "model_type": mtype,
-                "context_length": 8192,
-                "continuous_batching": True,
-                "cb_max_num_seqs": 128
-            }
-            resp = await client.post(f"{full_url}/v1/admin/load-model", json=payload, timeout=120.0)
-            if resp.status_code == 409:
-                print(f"      [✓] Model already loaded (as {mtype}). Continuing.")
-                if mtype == "multimodal":
-                    print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                          "          The engine currently falls back to sequential execution for vision models.", flush=True)
-                    choice = input("          Continue anyway? [y/N]: ")
-                    if choice.lower() not in ['y', 'yes']:
-                        return False
-                return True
-            if resp.status_code in [200, 201]:
-                print(f"      [✓] Loaded as {mtype}.")
-                if mtype == "multimodal":
-                    print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                          "          The engine currently falls back to sequential execution for vision models.", flush=True)
-                    choice = input("          Continue anyway? [y/N]: ")
-                    if choice.lower() not in ['y', 'yes']:
-                        return False
-                return True
-            if resp.status_code == 500:
-                print(f"      [!] Load as '{mtype}' failed, trying next type...")
-                continue
-            print(f"      [!] Load failed: {resp.status_code} {resp.text}")
-            return False
-
-        print(f"      [!] Could not load '{model_path}' as 'lm' or 'multimodal'. "
-              f"This model may not be compatible with the Bodega Inference Engine.")
+        mtype = get_model_type(model_path)
+        print(f"      [->] Detected model_type from config.json: {mtype}")
+        payload = {
+            "model_path": model_path,
+            "model_id": model_id,
+            "model_type": mtype,
+            "context_length": 8192,
+            "continuous_batching": True,
+            "cb_max_num_seqs": 128
+        }
+        resp = await client.post(f"{full_url}/v1/admin/load-model", json=payload, timeout=120.0)
+        if resp.status_code == 409:
+            print(f"      [✓] Model already loaded (as {mtype}). Continuing.")
+            if mtype == "multimodal":
+                print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                      "          The engine currently falls back to sequential execution for vision models.", flush=True)
+                choice = input("          Continue anyway? [y/N]: ")
+                if choice.lower() not in ['y', 'yes']:
+                    return False
+            return True
+        if resp.status_code in [200, 201]:
+            print(f"      [✓] Loaded as {mtype}.")
+            if mtype == "multimodal":
+                print("      [!] Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                      "          The engine currently falls back to sequential execution for vision models.", flush=True)
+                choice = input("          Continue anyway? [y/N]: ")
+                if choice.lower() not in ['y', 'yes']:
+                    return False
+            return True
+        print(f"      [!] Load failed: {resp.status_code} {resp.text}")
         return False
 
     elif action == "unload":

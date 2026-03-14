@@ -155,6 +155,64 @@ async def _lmstudio_loaded_model_id(url: str) -> str:
     return ""
 
 
+def _lmstudio_model_identifier(model: str) -> str:
+    """Return the identifier LM Studio expects. For HF repos, use full URL (required for MLX/non-catalog models)."""
+    if "/" in model and not model.startswith("http"):
+        return f"https://huggingface.co/{model}"
+    return model
+
+
+async def _download_model_via_lmstudio(base_url: str, model: str) -> bool:
+    """Download model via LM Studio API. Returns True if ready (downloaded or already_downloaded)."""
+    url = f"{base_url.rstrip('/')}/api/v1/models/download"
+    identifier = _lmstudio_model_identifier(model)
+    async with httpx.AsyncClient() as c:
+        try:
+            r = await c.post(url, json={"model": identifier}, timeout=30.0)
+            if r.status_code != 200:
+                try:
+                    err = r.json()
+                    msg = err.get("error", err.get("message", r.text[:200]))
+                except Exception:
+                    msg = r.text[:200]
+                print(f"  ⚠  LM Studio download API returned {r.status_code}: {msg}")
+                return False
+            data = r.json()
+            status = data.get("status", "")
+            if status == "already_downloaded":
+                print("  ✓  Model already downloaded in LM Studio")
+                return True
+            job_id = data.get("job_id")
+            if not job_id:
+                print("  ⚠  LM Studio returned no job_id (status=%s). Model may not be in LM Studio catalog." % status)
+                return False
+            # Poll until completed or failed
+            status_url = f"{base_url.rstrip('/')}/api/v1/models/download/status/{job_id}"
+            while True:
+                await asyncio.sleep(2.0)
+                sr = await c.get(status_url, timeout=10.0)
+                if sr.status_code != 200:
+                    return False
+                sdata = sr.json()
+                status = sdata.get("status", "")
+                if status == "completed":
+                    print("  ✓  Model downloaded in LM Studio")
+                    return True
+                if status == "failed":
+                    err_msg = sdata.get("error", sdata.get("message", ""))
+                    print(f"  ⚠  LM Studio download failed: {err_msg or status}")
+                    return False
+                # downloading or paused - continue polling
+                downloaded = sdata.get("downloaded_bytes", 0)
+                total = sdata.get("total_size_bytes", 0)
+                pct = (downloaded / total * 100) if total else 0
+                print(f"\r  Downloading in LM Studio... {pct:.0f}%", end="", flush=True)
+        except Exception as e:
+            print(f"  ⚠  LM Studio download error: {e}")
+            return False
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Comparison printing
 # ---------------------------------------------------------------------------
@@ -576,6 +634,10 @@ def parse_args() -> argparse.Namespace:
                    help="Skip LM Studio benchmark")
     p.add_argument("--no-bodega", action="store_true",
                    help="Skip Bodega benchmark")
+    p.add_argument("--skip-download", action="store_true",
+                   help="Skip LM Studio model download (use if already downloaded)")
+    p.add_argument("--yes", "-y", action="store_true",
+                   help="Skip confirmation prompt for LM Studio Max Concurrent Predictions")
 
     p.add_argument("--output", default="",
                    help="Save JSON comparison report to this file")
@@ -644,6 +706,26 @@ async def _main() -> None:
             args.no_lmstudio = True
         else:
             print(f"\n  ✓  LM Studio reachable  ({args.lmstudio_url})")
+
+            # ── Download model in LM Studio (if not skipped) ─────────────────
+            if not args.skip_download:
+                print("  Ensuring model is downloaded in LM Studio...")
+                ok = await _download_model_via_lmstudio(args.lmstudio_url, args.model)
+                if not ok:
+                    print("  (Download skipped or failed — download manually in LM Studio, or use --skip-download)")
+
+            # ── Confirm LM Studio loaded with Max Concurrent Predictions=32 ─
+            if not args.yes:
+                model_short = args.model.split("/")[-1]
+                print()
+                resp = input(
+                    f"  Did you load the {model_short} model with "
+                    "'Max Concurrent Predictions' as 32 when loading it in LM Studio? [y/N]: "
+                ).strip().lower()
+                if resp not in ("y", "yes"):
+                    print("\n  Please load the model in LM Studio with Max Concurrent Predictions=32,")
+                    print("  then run this script again.")
+                    sys.exit(0)
 
     if not args.no_bodega:
         bod_up = await _is_reachable(args.bodega_url)
