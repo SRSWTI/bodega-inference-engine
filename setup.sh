@@ -173,19 +173,15 @@ if [[ "$model_choice" == "5" ]]; then
     echo -e "\n${GREEN}Setup complete!${NC}"
     echo ""
     echo "Would you like to run a benchmark now?"
-    echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
-    echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
-    echo "3) No, exit setup"
-    read -p "Select an option [1-3]: " run_bench
+    echo "1) Compare Engines (LM Studio vs Bodega CB)"
+    echo "2) No, exit setup"
+    read -p "Select an option [1-2]: " run_bench
     
     if [[ "$run_bench" == "1" ]]; then
-        echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
-        python benchmark_http_concurrency.py --model "$TARGET_MODEL"
-    elif [[ "$run_bench" == "2" ]]; then
-        echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-        python sweep_cb_configs.py --model "$TARGET_MODEL"
+        echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
+        python compare_engines.py --model "$TARGET_MODEL"
     else
-        echo -e "\nYou can run the tests anytime with: ${YELLOW}python benchmark_http_concurrency.py --model $TARGET_MODEL${NC} or ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}"
+        echo -e "\nYou can run the comparison anytime with: ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}"
     fi
     exit 0
 fi
@@ -331,41 +327,23 @@ if [[ "$MODEL_TYPE" == "multimodal" ]]; then
 fi
 
 echo "Would you like to run a benchmark now to test performance?"
-if [[ "$IS_MULTIMODAL" == "1" ]]; then
-    echo "1) Basic Benchmark (Sequential mode, 3 requests)"
-    echo "2) Throughput Sweep (Sequential mode, 3 requests)"
-else
-    echo "1) Basic Benchmark (HTTP Concurrency Load Test)"
-    echo "2) Advanced Benchmark (Continuous Batching Config Sweep)"
-fi
-echo "3) No, just let me use the Interactive Chat Shell!"
-echo "4) Skip"
-read -p "Select an option [1-4]: " run_bench
+echo "1) Compare Engines (LM Studio vs Bodega CB)"
+echo "2) No, just let me use the Interactive Chat Shell!"
+echo "3) Skip"
+read -p "Select an option [1-3]: " run_bench
 
 # Export telemetry preference so benchmark scripts can respect it
 export BODEGA_SKIP_TELEMETRY=$SKIP_TELEMETRY
 
 if [[ "$run_bench" == "1" ]]; then
-    echo -e "\n${BLUE}Running benchmark_http_concurrency.py...${NC}"
-    if [[ "$IS_MULTIMODAL" == "1" ]]; then
-        python benchmark_http_concurrency.py --model "$TARGET_MODEL" --concurrency 3 --num-queries 3
-    else
-        python benchmark_http_concurrency.py --model "$TARGET_MODEL"
-    fi
+    echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
+    python compare_engines.py --model "$TARGET_MODEL"
 elif [[ "$run_bench" == "2" ]]; then
-    echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-    if [[ "$IS_MULTIMODAL" == "1" ]]; then
-        python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential
-    else
-        python sweep_cb_configs.py --model "$TARGET_MODEL"
-    fi
-elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
 else
-    echo -e "\nYou can test continuous batching and interact with models anytime by running:"
-    echo -e "  ${YELLOW}python benchmark_http_concurrency.py --model $TARGET_MODEL${NC}  (for basic load testing)"
-    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (for config benchmarking)"
+    echo -e "\nYou can run the comparison and chat anytime by running:"
+    echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (for live chat and visuals)"
 fi
 
