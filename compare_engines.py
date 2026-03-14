@@ -8,16 +8,35 @@ side-by-side and produces a structured comparison report.
   Engine A: LM Studio  (OpenAI-compatible server, static-batch prefill)
   Engine B: Bodega     (Bodega Inference Engine, true continuous batching)
 
-Both servers are tested with the same model, same prompts, same token budget,
-and the same concurrency levels, so the numbers are directly comparable.
+Both servers are tested with the same model, same prompts, and same token
+budget at each concurrency level.  Bodega is automatically configured with
+the sweep-optimal prefill-batch size at each concurrency level (derived from
+sweep_cb_configs.py results on M1 Max with bodega-raptor-90m):
+
+    C=1–8   →  prefill-batch=4  (best latency/throughput balance)
+    C=16    →  prefill-batch=8  (646 tok/s system throughput)
+    C=32    →  prefill-batch=8  (838+ tok/s system throughput)
+
+Use --no-optimal to disable this and use a fixed --cb-prefill-batch-size.
+
+The report includes:
+  • Per-concurrency side-by-side metric tables
+  • Per-request TTFT distribution for each engine
+  • Final scorecard (winner per metric × concurrency)
+  • Peak throughput comparison (each engine at its best)
+
+Prerequisites:
+    For fair benchmarks, load the model in LM Studio with max_concurrency=32
+    (that's LM Studio's batching config). Bodega is auto-loaded with CB configs
+    by this script. The benchmark tests up to C=32.
 
 Usage:
-    # Both servers already running, model already loaded in LM Studio
+    # Full comparison — loads model in Bodega, model already loaded in LM Studio
     python compare_engines.py --model srswti/bodega-raptor-90m
 
-    # Specify concurrency levels and token budget
+    # Custom concurrency sweep
     python compare_engines.py --model srswti/bodega-raptor-90m \\
-        --concurrencies 1,4,8 --max-tokens 256 --prompts 10
+        --concurrencies 4,8,16,32 --max-tokens 256 --prompts 10
 
     # Use a different model-id in LM Studio (if it differs from the HF name)
     python compare_engines.py --model srswti/bodega-raptor-0.9b \\
@@ -32,10 +51,14 @@ Usage:
     # Skip LM Studio
     python compare_engines.py --model srswti/bodega-raptor-90m --no-lmstudio
 
+    # Disable auto-optimal CB config, use fixed prefill-batch
+    python compare_engines.py --model srswti/bodega-raptor-90m \\
+        --no-optimal --cb-prefill-batch-size 4
+
 Defaults:
     --lmstudio-url     http://127.0.0.1:1234
     --bodega-url       http://localhost:44468
-    --concurrencies    1,4,8
+    --concurrencies    1,4,8,16,32
     --max-tokens       256
     --prompts          10
     --warmup           1
@@ -73,9 +96,27 @@ from benchmark_llm import (  # noqa: E402
 # Defaults
 # ---------------------------------------------------------------------------
 
-DEFAULT_LMSTUDIO_URL = "http://127.0.0.1:1234"
-DEFAULT_BODEGA_URL   = "http://localhost:44468"
-DEFAULT_CONCURRENCIES = "1,4,8"
+DEFAULT_LMSTUDIO_URL  = "http://127.0.0.1:1234"
+DEFAULT_BODEGA_URL    = "http://localhost:44468"
+DEFAULT_CONCURRENCIES = "1,4,8,16,32"
+
+
+
+OPTIMAL_CB_PREFILL_BATCH: dict[int, int] = {
+    1:  4,
+    4:  4,
+    8:  4,   # best latency at low-mid concurrency
+    16: 8,   # throughput sweet-spot
+    32: 8,   # max throughput
+}
+
+
+def _optimal_prefill_batch(concurrency: int) -> int:
+    """Return the sweep-optimal prefill-batch size for this concurrency level."""
+    for threshold in sorted(OPTIMAL_CB_PREFILL_BATCH.keys(), reverse=True):
+        if concurrency >= threshold:
+            return OPTIMAL_CB_PREFILL_BATCH[threshold]
+    return 4
 
 
 # ---------------------------------------------------------------------------
@@ -151,14 +192,16 @@ def print_concurrency_block(
     concurrency: int,
     lm: BenchmarkSummary | None,
     bod: BenchmarkSummary | None,
+    bod_prefill_batch: int = 8,
 ) -> None:
     """Print the side-by-side comparison table for one concurrency level."""
 
     sep_thick = "  " + "═" * (W - 4)
     print()
     print(sep_thick)
-    title = f"  Concurrency = {concurrency}"
-    print(title)
+    print(f"  Concurrency = {concurrency}")
+    print(f"  LM Studio: static batch (size fixed by server)  │  "
+          f"Bodega CB: prefill-batch={bod_prefill_batch}")
     print(_hline())
 
     hdr = f"  {'Metric':<32} {'LM Studio':>14} {'Bodega CB':>14}   {'Winner'}"
@@ -344,6 +387,108 @@ def print_scorecard(
 
 
 # ---------------------------------------------------------------------------
+# Peak throughput comparison
+# ---------------------------------------------------------------------------
+
+def print_peak_throughput(
+    concurrencies: list[int],
+    lm_runs:  dict[int, BenchmarkSummary | None],
+    bod_runs: dict[int, BenchmarkSummary | None],
+    bodega_configs: dict[int, int],
+) -> None:
+    """Show each engine at its best System TPS across all tested concurrencies."""
+    sep_thick = "  " + "═" * (W - 4)
+    print()
+    print(sep_thick)
+    print("  PEAK THROUGHPUT  —  Each Engine at Its Best")
+    print(_hline())
+
+    # Find peak for LM Studio
+    lm_best_tps, lm_best_c = 0.0, 0
+    for c, s in lm_runs.items():
+        if s and s.system_throughput_tps > lm_best_tps:
+            lm_best_tps, lm_best_c = s.system_throughput_tps, c
+
+    # Find peak for Bodega
+    bod_best_tps, bod_best_c = 0.0, 0
+    for c, s in bod_runs.items():
+        if s and s.system_throughput_tps > bod_best_tps:
+            bod_best_tps, bod_best_c = s.system_throughput_tps, c
+
+    lm_best  = lm_runs.get(lm_best_c)
+    bod_best = bod_runs.get(bod_best_c)
+
+    print(f"  {'':32} {'LM Studio':>16} {'Bodega CB':>16}")
+    print(_hline("·"))
+
+    def prow(label: str, lv: str, bv: str) -> None:
+        print(f"  {label:<32} {lv:>16} {bv:>16}")
+
+    prow("Best concurrency",
+         f"C={lm_best_c}"  if lm_best_c  else "—",
+         f"C={bod_best_c}" if bod_best_c else "—")
+
+    prow("Bodega prefill-batch at peak",
+         "n/a (fixed)",
+         f"prefill={bodega_configs.get(bod_best_c, '?')}" if bod_best_c else "—")
+
+    print(_hline("·"))
+
+    prow("Peak System TPS",
+         f"{lm_best_tps:.0f} tok/s"  if lm_best_tps  else "—",
+         f"{bod_best_tps:.0f} tok/s" if bod_best_tps else "—")
+
+    if lm_best and bod_best:
+        prow("Peak wall time",
+             f"{lm_best.total_time:.2f}s",
+             f"{bod_best.total_time:.2f}s")
+        prow("Peak req/sec",
+             f"{lm_best.requests_per_second:.2f}",
+             f"{bod_best.requests_per_second:.2f}")
+        prow("TTFT mean at peak",
+             f"{lm_best.ttft_mean*1000:.0f} ms",
+             f"{bod_best.ttft_mean*1000:.0f} ms")
+        prow("TTFT p95 at peak",
+             f"{lm_best.ttft_p95*1000:.0f} ms",
+             f"{bod_best.ttft_p95*1000:.0f} ms")
+
+    print(_hline("·"))
+
+    if lm_best_tps > 0 and bod_best_tps > 0:
+        tps_ratio = bod_best_tps / lm_best_tps
+        if tps_ratio >= 1:
+            print(f"  Bodega peak throughput:  {tps_ratio:.2f}x higher than LM Studio peak")
+        else:
+            print(f"  LM Studio peak throughput: {1/tps_ratio:.2f}x higher than Bodega peak")
+
+    # Throughput scaling table for Bodega across all C levels
+    bod_with_data = [(c, s) for c, s in sorted(bod_runs.items()) if s and s.system_throughput_tps > 0]
+    if len(bod_with_data) >= 2:
+        print()
+        print(f"  Bodega CB throughput scaling:")
+        base_tps = bod_with_data[0][1].system_throughput_tps
+        for c, s in bod_with_data:
+            gain = s.system_throughput_tps / base_tps
+            pb = bodega_configs.get(c, "?")
+            bar = "█" * int(s.system_throughput_tps / 50)
+            print(f"    C={c:>2} (prefill={pb}): {s.system_throughput_tps:>6.0f} tok/s  "
+                  f"{gain:.2f}x  {bar}")
+
+    # Same for LM Studio
+    lm_with_data = [(c, s) for c, s in sorted(lm_runs.items()) if s and s.system_throughput_tps > 0]
+    if len(lm_with_data) >= 2:
+        print()
+        print(f"  LM Studio throughput scaling:")
+        base_tps = lm_with_data[0][1].system_throughput_tps
+        for c, s in lm_with_data:
+            gain = s.system_throughput_tps / base_tps
+            bar = "█" * int(s.system_throughput_tps / 50)
+            print(f"    C={c:>2}:  {s.system_throughput_tps:>6.0f} tok/s  {gain:.2f}x  {bar}")
+
+    print(sep_thick)
+
+
+# ---------------------------------------------------------------------------
 # JSON output
 # ---------------------------------------------------------------------------
 
@@ -352,16 +497,27 @@ def save_report(
     concurrencies: list[int],
     lm_runs:  dict[int, BenchmarkSummary | None],
     bod_runs: dict[int, BenchmarkSummary | None],
+    bodega_configs: dict[int, int],
     chip: str,
     mem_gb: float,
     path: str,
 ) -> None:
+    # Find peak throughput for each engine
+    lm_peak  = max((s.system_throughput_tps for s in lm_runs.values()  if s), default=0)
+    bod_peak = max((s.system_throughput_tps for s in bod_runs.values() if s), default=0)
+
     payload: dict[str, Any] = {
         "type": "engine_comparison",
         "generated_at": datetime.now().isoformat(),
         "model": model,
         "hardware": {"chip": chip, "memory_gb": mem_gb},
         "concurrencies": concurrencies,
+        "bodega_optimal_configs": {str(c): pb for c, pb in bodega_configs.items()},
+        "peak_throughput": {
+            "lmstudio_tok_per_s":  lm_peak,
+            "bodega_cb_tok_per_s": bod_peak,
+            "bodega_advantage_x":  round(bod_peak / lm_peak, 3) if lm_peak > 0 else None,
+        },
         "lmstudio": {
             str(c): (_summary_to_dict(s) if s else None)
             for c, s in lm_runs.items()
@@ -407,10 +563,13 @@ def parse_args() -> argparse.Namespace:
 
     # CB tuning
     p.add_argument("--cb-max-num-seqs",          type=int, default=256)
-    p.add_argument("--cb-prefill-batch-size",     type=int, default=8)
+    p.add_argument("--cb-prefill-batch-size",     type=int, default=None,
+                   help="Override prefill-batch size (default: auto-selected per concurrency from sweep results)")
     p.add_argument("--cb-completion-batch-size",  type=int, default=32)
     p.add_argument("--cb-chunked-prefill-tokens", type=int, default=2048)
     p.add_argument("--context-length",            type=int, default=8192)
+    p.add_argument("--no-optimal", action="store_true",
+                   help="Disable auto-optimal prefill-batch selection; use --cb-prefill-batch-size (default 8) for all levels")
 
     # Skip flags
     p.add_argument("--no-lmstudio", action="store_true",
@@ -435,12 +594,22 @@ async def _main() -> None:
     prompts       = PROMPTS[:num_prompts]
     chip, mem_gb  = _detect_hardware_from_mactop()
 
+    # ── Determine prefill-batch per concurrency ────────────────────────────
+    # If user passed an explicit --cb-prefill-batch-size OR --no-optimal,
+    # use that fixed value for every concurrency level.
+    # Otherwise use the sweep-derived optimal config.
+    fixed_pb = args.cb_prefill_batch_size  # None means "use optimal"
+    use_optimal = not args.no_optimal and fixed_pb is None
+    bodega_configs: dict[int, int] = {
+        c: (_optimal_prefill_batch(c) if use_optimal else (fixed_pb or 8))
+        for c in concurrencies
+    }
+
     # ── Auto-detect LM Studio model id ────────────────────────────────────
     lmstudio_model_id = args.lmstudio_model_id
     if not lmstudio_model_id and not args.no_lmstudio:
         lmstudio_model_id = await _lmstudio_loaded_model_id(args.lmstudio_url)
         if not lmstudio_model_id:
-            # Fall back to last component of the HF path
             lmstudio_model_id = args.model.split("/")[-1]
 
     bodega_model_id = f"compare-{args.model.split('/')[-1]}"
@@ -449,12 +618,20 @@ async def _main() -> None:
     W_FULL = 78
     print("=" * W_FULL)
     print("  ENGINE COMPARISON  —  LM Studio  vs  Bodega Continuous Batching")
+    print()
+    print("  ⚠  For fair benchmarks: Load the model in LM Studio with max_concurrency=32")
+    print("     (LM Studio's batching config). Bodega is auto-loaded with CB by this script.")
     print("=" * W_FULL)
     print(f"  Model:              {args.model}")
     print(f"  LM Studio URL:      {args.lmstudio_url}  (model-id: {lmstudio_model_id})")
     print(f"  Bodega URL:         {args.bodega_url}  (model-id: {bodega_model_id})")
     print(f"  Hardware:           {chip} ({mem_gb:.0f} GB)" if chip else "  Hardware:           —")
     print(f"  Concurrencies:      {concurrencies}")
+    if use_optimal:
+        cfg_str = "  ".join(f"C={c}→pb={bodega_configs[c]}" for c in concurrencies)
+        print(f"  Bodega CB configs:  {cfg_str}  (auto-optimal)")
+    else:
+        print(f"  Bodega CB configs:  prefill-batch={fixed_pb or 8} (fixed)")
     print(f"  Prompts / budget:   {num_prompts} prompts  ×  {args.max_tokens} max tokens")
     print(f"  Timestamp:          {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * W_FULL)
@@ -480,26 +657,14 @@ async def _main() -> None:
         print("\n  ✗  Neither server is reachable. Exiting.")
         sys.exit(1)
 
-    # ── Common kwargs for run_benchmark ────────────────────────────────────
-    common_kwargs = dict(
-        prompts=prompts,
-        max_tokens=args.max_tokens,
-        temperature=args.temperature,
-        warmup_runs=args.warmup,
-        cb_max_num_seqs=args.cb_max_num_seqs,
-        cb_prefill_batch_size=args.cb_prefill_batch_size,
-        cb_completion_batch_size=args.cb_completion_batch_size,
-        cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
-        context_length=args.context_length,
-    )
-
     lm_runs:  dict[int, BenchmarkSummary | None] = {}
     bod_runs: dict[int, BenchmarkSummary | None] = {}
 
     # ── Run benchmarks ─────────────────────────────────────────────────────
     for c in concurrencies:
+        pb = bodega_configs[c]
         print(f"\n{'─'*W_FULL}")
-        print(f"  Running  concurrency = {c}")
+        print(f"  Running  concurrency = {c}  │  Bodega CB prefill-batch = {pb}")
         print(f"{'─'*W_FULL}")
 
         if not args.no_lmstudio:
@@ -509,16 +674,24 @@ async def _main() -> None:
                 model_path="",
                 model_id=lmstudio_model_id,
                 concurrency=c,
-                continuous_batching=True,   # label only — LM Studio uses its own batching
+                continuous_batching=True,
                 manage_model_lifecycle=False,
-                **common_kwargs,
+                prompts=prompts,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                warmup_runs=args.warmup,
+                cb_max_num_seqs=args.cb_max_num_seqs,
+                cb_prefill_batch_size=pb,
+                cb_completion_batch_size=args.cb_completion_batch_size,
+                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
+                context_length=args.context_length,
             )
             lm_runs[c] = lm_s
         else:
             lm_runs[c] = None
 
         if not args.no_bodega:
-            print(f"\n  [Bodega CB]  concurrency={c}")
+            print(f"\n  [Bodega CB]  concurrency={c}  prefill-batch={pb}")
             bod_s = await run_benchmark(
                 base_url=args.bodega_url,
                 model_path=args.model,
@@ -526,7 +699,15 @@ async def _main() -> None:
                 concurrency=c,
                 continuous_batching=True,
                 manage_model_lifecycle=True,
-                **common_kwargs,
+                prompts=prompts,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                warmup_runs=args.warmup,
+                cb_max_num_seqs=args.cb_max_num_seqs,
+                cb_prefill_batch_size=pb,
+                cb_completion_batch_size=args.cb_completion_batch_size,
+                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
+                context_length=args.context_length,
             )
             bod_runs[c] = bod_s
         else:
@@ -538,9 +719,15 @@ async def _main() -> None:
     print("=" * W_FULL)
 
     for c in concurrencies:
-        print_concurrency_block(c, lm_runs.get(c), bod_runs.get(c))
+        print_concurrency_block(
+            c,
+            lm_runs.get(c),
+            bod_runs.get(c),
+            bod_prefill_batch=bodega_configs[c],
+        )
 
     print_scorecard(concurrencies, lm_runs, bod_runs)
+    print_peak_throughput(concurrencies, lm_runs, bod_runs, bodega_configs)
 
     # ── JSON output ────────────────────────────────────────────────────────
     if args.output:
@@ -549,6 +736,7 @@ async def _main() -> None:
             concurrencies=concurrencies,
             lm_runs=lm_runs,
             bod_runs=bod_runs,
+            bodega_configs=bodega_configs,
             chip=chip,
             mem_gb=mem_gb,
             path=args.output,

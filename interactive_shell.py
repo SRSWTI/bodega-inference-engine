@@ -90,7 +90,8 @@ def print_menu():
     table.add_row("6", "[bold magenta]Interactive Chat Mode[/bold magenta]")
     table.add_row("7", "Read about config.yaml (Static Registry Setup)")
     table.add_row("8", "[bold bright_cyan]Launch Real-Time Apple Silicon Telemetry (mactop)[/bold bright_cyan]")
-    table.add_row("9", "Exit")
+    table.add_row("9", "[bold yellow]Compare Engines (LM Studio vs Bodega)[/bold yellow]")
+    table.add_row("10", "Exit")
     
     console.print("\n[bold cyan]--- Main Menu ---[/bold cyan]")
     console.print(table)
@@ -632,6 +633,30 @@ variables or args depending on the entry point wrapper.
 """
     console.print(Panel(text, title="config.yaml Explained", border_style="blue"))
 
+def run_compare_engines():
+    console.print("\n[bold cyan][+] Compare Engines (LM Studio vs Bodega)[/bold cyan]")
+    console.print("")
+    console.print("[bold yellow]⚠  For fair benchmarks: Load the model in LM Studio with max_concurrency=32[/bold yellow]")
+    console.print("[bold yellow]   (LM Studio's batching config). Bodega is auto-loaded with CB by the script.[/bold yellow]")
+    console.print("")
+
+    default_model = "srswti/bodega-raptor-90m"
+    model = Prompt.ask("Model path (HuggingFace repo or local)", default=default_model)
+    if not model:
+        model = default_model
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    compare_script = os.path.join(script_dir, "compare_engines.py")
+    console.print(f"\n[dim]Running: python compare_engines.py --model {model}[/dim]\n")
+    try:
+        subprocess.run(
+            [sys.executable, compare_script, "--model", model],
+            cwd=script_dir,
+        )
+    except Exception as e:
+        console.print(f"[red]Error running compare_engines: {e}[/red]")
+
+
 def launch_mactop():
     console.print("\n[bold cyan][+][/bold cyan] Launching Real-Time Apple Silicon Telemetry (mactop)...")
     if os.system("command -v mactop >/dev/null 2>&1") != 0:
@@ -659,7 +684,7 @@ def main():
         try:
             print_header()
             print_menu()
-            choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(1, 10)])
+            choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(1, 11)])
             
             if choice == '1': check_health()
             elif choice == '2': stream_download()
@@ -669,7 +694,8 @@ def main():
             elif choice == '6': interactive_chat()
             elif choice == '7': print_config_explanation()
             elif choice == '8': launch_mactop()
-            elif choice == '9': 
+            elif choice == '9': run_compare_engines()
+            elif choice == '10':
                 console.print("\n[bold green]Exiting. Thank you for using the Bodega Inference Engine.[/bold green]")
                 break
                 
