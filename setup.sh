@@ -177,15 +177,20 @@ if [[ "$model_choice" == "5" ]]; then
     echo "2) Compare Engines (LM Studio vs Bodega CB)"
     echo "3) No, exit setup"
     read -p "Select an option [1-3]: " run_bench
-    
+
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    mkdir -p results
+
     if [[ "$run_bench" == "1" ]]; then
-        echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
-        python sweep_cb_configs.py --model "$TARGET_MODEL"
+        echo -e "\n${BLUE}Running CB Configuration Sweep — results will open in browser when done...${NC}"
+        python sweep_cb_configs.py --model "$TARGET_MODEL" --output "results/sweep_${TIMESTAMP}.json"
     elif [[ "$run_bench" == "2" ]]; then
-        echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
-        python compare_engines.py --model "$TARGET_MODEL"
+        echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
+        python compare_engines.py --model "$TARGET_MODEL" --output "results/compare_${TIMESTAMP}.json"
     else
-        echo -e "\nYou can run the tests anytime with: ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC} or ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}"
+        echo -e "\nYou can run benchmarks anytime:"
+        echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
+        echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
     fi
     exit 0
 fi
@@ -345,22 +350,28 @@ read -p "Select an option [1-4]: " run_bench
 # Export telemetry preference so benchmark scripts can respect it
 export BODEGA_SKIP_TELEMETRY=$SKIP_TELEMETRY
 
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+mkdir -p results
+
 if [[ "$run_bench" == "1" ]]; then
-    echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
+    echo -e "\n${BLUE}Running CB Sweep — results will open in browser when done...${NC}"
     if [[ "$IS_MULTIMODAL" == "1" ]]; then
-        python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential
+        python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential \
+            --output "results/sweep_${TIMESTAMP}.json"
     else
-        python sweep_cb_configs.py --model "$TARGET_MODEL"
+        python sweep_cb_configs.py --model "$TARGET_MODEL" \
+            --output "results/sweep_${TIMESTAMP}.json"
     fi
 elif [[ "$run_bench" == "2" ]]; then
-    echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
-    python compare_engines.py --model "$TARGET_MODEL"
+    echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
+    python compare_engines.py --model "$TARGET_MODEL" \
+        --output "results/compare_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
 else
     echo -e "\nYou can run benchmarks and interact with models anytime:"
-    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (config benchmarking)"
+    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
     echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (live chat and visuals)"
 fi

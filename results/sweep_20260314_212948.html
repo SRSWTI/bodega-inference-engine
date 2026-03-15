@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bodega Benchmark Results — srswti/bodega-raptor-90m</title>
+<style>
+:root {
+  --bg:      #0d1117;
+  --surface: #161b22;
+  --border:  #30363d;
+  --text:    #c9d1d9;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --green:   #3fb950;
+  --gold:    #e3b341;
+  --best-bg: #1a2a1a;
+  --best-border: #3fb950;
+  --radius:  8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 32px 16px 64px;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+
+.grid-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  max-width: 860px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  max-width: 1100px;
+}
+
+.card h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scenario-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 18px 0 8px;
+  letter-spacing: 0.3px;
+}
+
+table.kv { width: 100%; border-collapse: collapse; }
+table.kv td { padding: 4px 8px; }
+.kv-key { color: var(--muted); width: 110px; }
+.kv-val { color: var(--text); font-family: "SF Mono", monospace; font-size: 13px; }
+.kv-val code { background: #1c2128; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+.table-wrap { overflow-x: auto; margin-bottom: 4px; }
+
+table:not(.kv) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table:not(.kv) thead tr {
+  background: #1c2128;
+}
+
+table:not(.kv) th {
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table:not(.kv) td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #21262d;
+  font-family: "SF Mono", monospace;
+  white-space: nowrap;
+}
+
+table:not(.kv) tr:last-child td { border-bottom: none; }
+
+table:not(.kv) tbody tr:hover { background: #1c2128; }
+
+tr.best-row { background: var(--best-bg) !important; }
+tr.best-row td { border-left: 2px solid var(--best-border); }
+tr.best-row td:first-child { border-left: 2px solid var(--best-border); }
+
+.star { font-size: 14px; margin-left: 4px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #1c2128;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.best-banner {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #1a2a1a;
+  border: 1px solid var(--best-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--green);
+}
+
+@media (max-width: 680px) {
+  .grid-top { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<h1>Bodega Inference Engine — Benchmark Results</h1>
+<p class="subtitle">Generated Mar 14, 2026 at 21:33:25</p>
+
+<div class="grid-top">
+  <div class="card"><h2>Device</h2><table class="kv"><tr><td class="kv-key">Chip</td><td class="kv-val">Apple M1 Max</td></tr><tr><td class="kv-key">Mac Model</td><td class="kv-val">MacBook Pro</td></tr><tr><td class="kv-key">Memory</td><td class="kv-val">64.0 GB</td></tr><tr><td class="kv-key">CPU</td><td class="kv-val">10 cores (8P + 2E)</td></tr><tr><td class="kv-key">GPU Cores</td><td class="kv-val">32</td></tr></table></div>
+  <div class="card"><h2>Benchmark Run</h2><table class="kv"><tr><td class="kv-key">Model</td><td class="kv-val"><code>srswti/bodega-raptor-90m</code></td></tr><tr><td class="kv-key">Run at</td><td class="kv-val">Mar 14, 2026  21:29:49</td></tr><tr><td class="kv-key">Source</td><td class="kv-val">CB Sweep</td></tr></table></div>
+</div>
+
+<div class="card"><h2>Continuous Batching Sweep</h2><h3 class="scenario-title">Mixed Queries</h3><div class="table-wrap"><table>
+        <thead><tr>
+          <th>Concurrency</th>
+          <th>Prefill Batch</th>
+          <th>Mean TTFT (ms)</th>
+          <th>P95 TTFT (ms)</th>
+          <th>Per-Req TPS</th>
+          <th>System Throughput (tok/s)</th>
+        </tr></thead><tbody><tr><td>8</td><td>2</td><td>213.5</td><td>277.6</td><td>82.4</td><td>574.6</td></tr><tr><td>8</td><td>4</td><td>201.0</td><td>264.4</td><td>84.3</td><td>542.8</td></tr><tr><td>8</td><td>8</td><td>225.5</td><td>244.0</td><td>82.5</td><td>567.4</td></tr><tr><td>16</td><td>4</td><td>300.9</td><td>467.5</td><td>44.7</td><td>608.1</td></tr><tr><td>16</td><td>8</td><td>327.0</td><td>435.7</td><td>45.8</td><td>650.2</td></tr><tr><td>16</td><td>16</td><td>372.7</td><td>407.5</td><td>45.4</td><td>609.6</td></tr><tr class="best-row"><td>32 <span class="star" title="Best Mixed-Query Config">🏆</span></td><td>8</td><td>808.0</td><td>2342.1</td><td>41.3</td><td>843.5</td></tr><tr><td>32</td><td>16</td><td>1538.2</td><td>2913.2</td><td>41.8</td><td>687.8</td></tr></tbody></table></div><h3 class="scenario-title">Same Query (Prefix Cache Test)</h3><div class="table-wrap"><table>
+        <thead><tr>
+          <th>Concurrency</th>
+          <th>Prefill Batch</th>
+          <th>Mean TTFT (ms)</th>
+          <th>P95 TTFT (ms)</th>
+          <th>Per-Req TPS</th>
+          <th>System Throughput (tok/s)</th>
+        </tr></thead><tbody><tr><td>8</td><td>2</td><td>236.9</td><td>324.1</td><td>81.2</td><td>553.5</td></tr><tr><td>8</td><td>4</td><td>233.3</td><td>300.6</td><td>80.9</td><td>559.9</td></tr><tr><td>8</td><td>8</td><td>232.8</td><td>250.7</td><td>79.0</td><td>553.0</td></tr><tr><td>16</td><td>4</td><td>317.4</td><td>483.8</td><td>45.5</td><td>643.7</td></tr><tr><td>16</td><td>8</td><td>310.8</td><td>403.5</td><td>46.2</td><td>660.0</td></tr><tr><td>16</td><td>16</td><td>378.3</td><td>396.5</td><td>46.7</td><td>657.3</td></tr><tr><td>32</td><td>8</td><td>688.1</td><td>3588.7</td><td>49.2</td><td>917.5</td></tr><tr><td>32</td><td>16</td><td>548.5</td><td>543.7</td><td>48.6</td><td>998.7</td></tr></tbody></table></div><div class="best-banner">🏆 <strong>Best Mixed-Query Config:</strong> Concurrency&nbsp;32, Prefill-Batch&nbsp;8 → 843.5 tok/s system throughput (Mean TTFT: 808.0 ms)</div></div>
+
+</body>
+</html>

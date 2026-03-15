@@ -1,0 +1,208 @@
+{
+  "type": "cb_sweep",
+  "generated_at": "2026-03-14T21:29:49.361947",
+  "model": "srswti/bodega-raptor-90m",
+  "hardware": {
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "processor": "arm",
+    "machine": "arm64",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "memory_gb": 64.0,
+    "chip": "Apple M1 Max",
+    "model": "MacBook Pro",
+    "total_cores": 10,
+    "performance_cores": 8,
+    "efficiency_cores": 2,
+    "gpu_cores": 32
+  },
+  "configs": {
+    "max_tokens": 128,
+    "configs_tested": [
+      [
+        8,
+        2
+      ],
+      [
+        8,
+        4
+      ],
+      [
+        8,
+        8
+      ],
+      [
+        16,
+        4
+      ],
+      [
+        16,
+        8
+      ],
+      [
+        16,
+        16
+      ],
+      [
+        32,
+        8
+      ],
+      [
+        32,
+        16
+      ]
+    ]
+  },
+  "results": [
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 8,
+      "prefill_batch": 2,
+      "mean_ttft_ms": 213.5,
+      "p95_ttft_ms": 277.6,
+      "per_req_tps": 82.4,
+      "system_throughput_tps": 574.6
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 8,
+      "prefill_batch": 4,
+      "mean_ttft_ms": 201.0,
+      "p95_ttft_ms": 264.4,
+      "per_req_tps": 84.3,
+      "system_throughput_tps": 542.8
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 8,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 225.5,
+      "p95_ttft_ms": 244.0,
+      "per_req_tps": 82.5,
+      "system_throughput_tps": 567.4
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 16,
+      "prefill_batch": 4,
+      "mean_ttft_ms": 300.9,
+      "p95_ttft_ms": 467.5,
+      "per_req_tps": 44.7,
+      "system_throughput_tps": 608.1
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 16,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 327.0,
+      "p95_ttft_ms": 435.7,
+      "per_req_tps": 45.8,
+      "system_throughput_tps": 650.2
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 16,
+      "prefill_batch": 16,
+      "mean_ttft_ms": 372.7,
+      "p95_ttft_ms": 407.5,
+      "per_req_tps": 45.4,
+      "system_throughput_tps": 609.6
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 32,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 808.0,
+      "p95_ttft_ms": 2342.1,
+      "per_req_tps": 41.3,
+      "system_throughput_tps": 843.5
+    },
+    {
+      "scenario": "Mixed Queries",
+      "concurrency": 32,
+      "prefill_batch": 16,
+      "mean_ttft_ms": 1538.2,
+      "p95_ttft_ms": 2913.2,
+      "per_req_tps": 41.8,
+      "system_throughput_tps": 687.8
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 8,
+      "prefill_batch": 2,
+      "mean_ttft_ms": 236.9,
+      "p95_ttft_ms": 324.1,
+      "per_req_tps": 81.2,
+      "system_throughput_tps": 553.5
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 8,
+      "prefill_batch": 4,
+      "mean_ttft_ms": 233.3,
+      "p95_ttft_ms": 300.6,
+      "per_req_tps": 80.9,
+      "system_throughput_tps": 559.9
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 8,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 232.8,
+      "p95_ttft_ms": 250.7,
+      "per_req_tps": 79.0,
+      "system_throughput_tps": 553.0
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 16,
+      "prefill_batch": 4,
+      "mean_ttft_ms": 317.4,
+      "p95_ttft_ms": 483.8,
+      "per_req_tps": 45.5,
+      "system_throughput_tps": 643.7
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 16,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 310.8,
+      "p95_ttft_ms": 403.5,
+      "per_req_tps": 46.2,
+      "system_throughput_tps": 660.0
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 16,
+      "prefill_batch": 16,
+      "mean_ttft_ms": 378.3,
+      "p95_ttft_ms": 396.5,
+      "per_req_tps": 46.7,
+      "system_throughput_tps": 657.3
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 32,
+      "prefill_batch": 8,
+      "mean_ttft_ms": 688.1,
+      "p95_ttft_ms": 3588.7,
+      "per_req_tps": 49.2,
+      "system_throughput_tps": 917.5
+    },
+    {
+      "scenario": "Same Query (Prefix Cache Test)",
+      "concurrency": 32,
+      "prefill_batch": 16,
+      "mean_ttft_ms": 548.5,
+      "p95_ttft_ms": 543.7,
+      "per_req_tps": 48.6,
+      "system_throughput_tps": 998.7
+    }
+  ],
+  "best_mixed": {
+    "concurrency": 32,
+    "prefill_batch": 8,
+    "system_throughput_tps": 843.5,
+    "mean_ttft_ms": 808.0
+  }
+}

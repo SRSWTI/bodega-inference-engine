@@ -20,6 +20,29 @@ from tabulate import tabulate
 from benchmark_continuous_batching import benchmark_batched_http, PROMPTS, manage_model, open_mactop_window
 from hardware_info import get_hardware_info
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _open_html_report(sweep_path: str = "", compare_path: str = "") -> None:
+    """Generate and open the HTML results page immediately after a benchmark."""
+    import sys
+    import webbrowser
+    if _HERE not in sys.path:
+        sys.path.insert(0, _HERE)
+    try:
+        import show_results as _sr
+        sweep_data   = _sr._load(sweep_path)   if sweep_path   else None
+        compare_data = _sr._load(compare_path) if compare_path else None
+        html = _sr.build_html(sweep_data, compare_data)
+        base = sweep_path or compare_path
+        html_path = base.rsplit(".", 1)[0] + ".html"
+        with open(html_path, "w") as fh:
+            fh.write(html)
+        print(f"  Results opened in browser → {html_path}")
+        webbrowser.open(f"file://{os.path.abspath(html_path)}")
+    except Exception as exc:
+        print(f"  (Could not open HTML report: {exc})")
+
 def get_telemetry():
     """Grab real-time Apple Silicon metrics from mactop --headless."""
     try:
@@ -137,24 +160,30 @@ async def run_sweep(base_url: str, model: str, output: str = ""):
     except Exception:
         pass
 
-    if output:
-        hw = get_hardware_info()
-        payload = {
-            "type": "cb_sweep",
-            "generated_at": generated_at,
-            "model": model,
-            "hardware": hw,
-            "configs": {
-                "max_tokens": max_tokens,
-                "configs_tested": [list(c) for c in configs],
-            },
-            "results": structured_results,
-            "best_mixed": best_mixed,
-        }
-        os.makedirs(os.path.dirname(output) if os.path.dirname(output) else ".", exist_ok=True)
-        with open(output, "w") as fh:
-            json.dump(payload, fh, indent=2)
-        print(f"\n  Sweep results saved → {output}")
+    hw = get_hardware_info()
+    payload = {
+        "type": "cb_sweep",
+        "generated_at": generated_at,
+        "model": model,
+        "hardware": hw,
+        "configs": {
+            "max_tokens": max_tokens,
+            "configs_tested": [list(c) for c in configs],
+        },
+        "results": structured_results,
+        "best_mixed": best_mixed,
+    }
+
+    if not output:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output = os.path.join("results", f"sweep_{ts}.json")
+
+    os.makedirs(os.path.dirname(output) if os.path.dirname(output) else ".", exist_ok=True)
+    with open(output, "w") as fh:
+        json.dump(payload, fh, indent=2)
+    print(f"\n  Sweep results saved → {output}")
+
+    _open_html_report(sweep_path=output)
 
 
 async def run_sequential_multimodal(base_url: str, model: str):

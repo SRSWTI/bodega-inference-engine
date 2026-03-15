@@ -84,6 +84,24 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+
+def _open_html_report(compare_path: str = "", sweep_path: str = "") -> None:
+    """Generate and open the HTML results page immediately after a benchmark."""
+    import webbrowser
+    try:
+        import show_results as _sr
+        sweep_data   = _sr._load(sweep_path)   if sweep_path   else None
+        compare_data = _sr._load(compare_path) if compare_path else None
+        html = _sr.build_html(sweep_data, compare_data)
+        base = compare_path or sweep_path
+        html_path = base.rsplit(".", 1)[0] + ".html"
+        with open(html_path, "w") as fh:
+            fh.write(html)
+        print(f"  Results opened in browser → {html_path}")
+        webbrowser.open(f"file://{os.path.abspath(html_path)}")
+    except Exception as exc:
+        print(f"  (Could not open HTML report: {exc})")
+
 from benchmark_llm import (  # noqa: E402
     PROMPTS,
     BenchmarkSummary,
@@ -585,9 +603,11 @@ def save_report(
             for c, s in bod_runs.items()
         },
     }
+    os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
     with open(path, "w") as fh:
         json.dump(payload, fh, indent=2)
     print(f"\n  Report saved → {path}")
+    _open_html_report(compare_path=path)
 
 
 # ---------------------------------------------------------------------------
@@ -812,17 +832,21 @@ async def _main() -> None:
     print_peak_throughput(concurrencies, lm_runs, bod_runs, bodega_configs)
 
     # ── JSON output ────────────────────────────────────────────────────────
-    if args.output:
-        save_report(
-            model=args.model,
-            concurrencies=concurrencies,
-            lm_runs=lm_runs,
-            bod_runs=bod_runs,
-            bodega_configs=bodega_configs,
-            chip=chip,
-            mem_gb=mem_gb,
-            path=args.output,
-        )
+    output_path = args.output
+    if not output_path:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join("results", f"compare_{ts}.json")
+
+    save_report(
+        model=args.model,
+        concurrencies=concurrencies,
+        lm_runs=lm_runs,
+        bod_runs=bod_runs,
+        bodega_configs=bodega_configs,
+        chip=chip,
+        mem_gb=mem_gb,
+        path=output_path,
+    )
 
 
 if __name__ == "__main__":
