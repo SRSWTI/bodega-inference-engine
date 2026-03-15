@@ -155,7 +155,7 @@ class IncompatibleModelError(Exception):
     pass
 
 def open_mactop_window():
-    """Opens mactop in a new Terminal window side-by-side via osascript.
+    """Opens mactop in a new Terminal window and focuses it via osascript.
     Skipped if BODEGA_SKIP_TELEMETRY=1 (user opted out during setup)."""
     if os.environ.get("BODEGA_SKIP_TELEMETRY") == "1":
         print("  [Telemetry] Skipped (user opted out during setup).")
@@ -163,7 +163,10 @@ def open_mactop_window():
     if not shutil.which("mactop"):
         print("  [Telemetry] mactop not found — skipping telemetry window.")
         return
-    script = 'tell application "Terminal" to do script "mactop"'
+    script = '''tell application "Terminal"
+    do script "mactop"
+    activate
+end tell'''
     ret = os.system(f"osascript -e '{script}' >/dev/null 2>&1")
     if ret != 0:
         pass  # Silent — don't block the benchmark

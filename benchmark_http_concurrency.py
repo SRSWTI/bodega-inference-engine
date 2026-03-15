@@ -254,8 +254,11 @@ class IncompatibleModelError(Exception):
     pass
 
 def open_mactop_window():
-    """Opens mactop in a new Terminal window side-by-side via osascript."""
-    script = 'tell application "Terminal" to do script "mactop"'
+    """Opens mactop in a new Terminal window and focuses it via osascript."""
+    script = '''tell application "Terminal"
+    do script "mactop"
+    activate
+end tell'''
     os.system(f"osascript -e '{script}' >/dev/null 2>&1")
 
 def get_model_type(model_path: str) -> str:

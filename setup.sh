@@ -157,7 +157,7 @@ if [[ "$model_choice" == "2" || "$model_choice" == "3" ]]; then
     MODELS+=("srswti/bodega-raptor-8b-mxfp4")
 fi
 if [[ "$model_choice" == "4" ]]; then
-    read -p "Enter HuggingFace model path (e.g. mlx-community/Qwen3.5-0.5B-Instruct-4bit): " custom_model
+    read -p "Enter HuggingFace model path (e.g. mlx-community/JOSIE-IT1-Qwen3-0.6B-4bit): " custom_model
     if [ -n "$custom_model" ]; then
         MODELS+=("$custom_model")
     fi
@@ -173,15 +173,19 @@ if [[ "$model_choice" == "5" ]]; then
     echo -e "\n${GREEN}Setup complete!${NC}"
     echo ""
     echo "Would you like to run a benchmark now?"
-    echo "1) Compare Engines (LM Studio vs Bodega CB)"
-    echo "2) No, exit setup"
-    read -p "Select an option [1-2]: " run_bench
+    echo "1) Advanced Benchmark (Continuous Batching Config Sweep)"
+    echo "2) Compare Engines (LM Studio vs Bodega CB)"
+    echo "3) No, exit setup"
+    read -p "Select an option [1-3]: " run_bench
     
     if [[ "$run_bench" == "1" ]]; then
+        echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
+        python sweep_cb_configs.py --model "$TARGET_MODEL"
+    elif [[ "$run_bench" == "2" ]]; then
         echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
         python compare_engines.py --model "$TARGET_MODEL"
     else
-        echo -e "\nYou can run the comparison anytime with: ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}"
+        echo -e "\nYou can run the tests anytime with: ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC} or ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}"
     fi
     exit 0
 fi
@@ -327,23 +331,37 @@ if [[ "$MODEL_TYPE" == "multimodal" ]]; then
 fi
 
 echo "Would you like to run a benchmark now to test performance?"
-echo "1) Compare Engines (LM Studio vs Bodega CB)"
-echo "2) No, just let me use the Interactive Chat Shell!"
-echo "3) Skip"
-read -p "Select an option [1-3]: " run_bench
+if [[ "$IS_MULTIMODAL" == "1" ]]; then
+    echo "1) Advanced Benchmark (Throughput Sweep, Sequential mode)"
+    echo "2) Compare Engines (LM Studio vs Bodega CB)"
+else
+    echo "1) Advanced Benchmark (Continuous Batching Config Sweep)"
+    echo "2) Compare Engines (LM Studio vs Bodega CB)"
+fi
+echo "3) No, just let me use the Interactive Chat Shell!"
+echo "4) Skip"
+read -p "Select an option [1-4]: " run_bench
 
 # Export telemetry preference so benchmark scripts can respect it
 export BODEGA_SKIP_TELEMETRY=$SKIP_TELEMETRY
 
 if [[ "$run_bench" == "1" ]]; then
+    echo -e "\n${BLUE}Executing sweep_cb_configs.py...${NC}"
+    if [[ "$IS_MULTIMODAL" == "1" ]]; then
+        python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential
+    else
+        python sweep_cb_configs.py --model "$TARGET_MODEL"
+    fi
+elif [[ "$run_bench" == "2" ]]; then
     echo -e "\n${BLUE}Running compare_engines.py (LM Studio vs Bodega)...${NC}"
     python compare_engines.py --model "$TARGET_MODEL"
-elif [[ "$run_bench" == "2" ]]; then
+elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
 else
-    echo -e "\nYou can run the comparison and chat anytime by running:"
+    echo -e "\nYou can run benchmarks and interact with models anytime:"
+    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (config benchmarking)"
     echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
-    echo -e "  ${YELLOW}python interactive_shell.py${NC}  (for live chat and visuals)"
+    echo -e "  ${YELLOW}python interactive_shell.py${NC}  (live chat and visuals)"
 fi
 

@@ -13,10 +13,12 @@ import contextlib
 import json
 import subprocess
 import os
+from datetime import datetime
 import httpx
 from tabulate import tabulate
 
 from benchmark_continuous_batching import benchmark_batched_http, PROMPTS, manage_model, open_mactop_window
+from hardware_info import get_hardware_info
 
 def get_telemetry():
     """Grab real-time Apple Silicon metrics from mactop --headless."""
@@ -45,7 +47,7 @@ def get_telemetry():
         pass
     return None
 
-async def run_sweep(base_url: str, model: str):
+async def run_sweep(base_url: str, model: str, output: str = ""):
     max_tokens = 128
     
     configs = [(8, 2), (8, 4), (8, 8), (16, 4), (16, 8), (16, 16), (32, 8), (32, 16)]
@@ -53,8 +55,10 @@ async def run_sweep(base_url: str, model: str):
     same_prompt = [PROMPTS[6]]
     
     results_table = []
+    structured_results = []
+    generated_at = datetime.now().isoformat()
     
-    print(f"\nStarting CB Configuration Sweep on M1 Max via HTTP ({base_url})...")
+    print(f"\nStarting CB Configuration Sweep via HTTP ({base_url})...")
     print(f"Model: {model}")
     print(f"Max generation tokens per request: {max_tokens}\n")
         
@@ -86,7 +90,7 @@ async def run_sweep(base_url: str, model: str):
             telemetry_str = f"  [{telemetry}]" if telemetry else ""
             print(f"Done.{telemetry_str}", flush=True)
 
-            results_table.append([
+            row = [
                 scenario_name,
                 concurrency,
                 prefill_batch,
@@ -94,7 +98,17 @@ async def run_sweep(base_url: str, model: str):
                 f"{summary.p95_ttft_ms:.0f}",
                 f"{summary.mean_tps:.1f}",
                 f"{summary.throughput_tps:.1f}"
-            ])
+            ]
+            results_table.append(row)
+            structured_results.append({
+                "scenario": scenario_name,
+                "concurrency": concurrency,
+                "prefill_batch": prefill_batch,
+                "mean_ttft_ms": float(f"{summary.mean_ttft_ms:.1f}"),
+                "p95_ttft_ms": float(f"{summary.p95_ttft_ms:.1f}"),
+                "per_req_tps": float(f"{summary.mean_tps:.1f}"),
+                "system_throughput_tps": float(f"{summary.throughput_tps:.1f}"),
+            })
 
     print("\n\n" + "=" * 85)
     print("  CONTINUOUS BATCHING SWEEP RESULTS")
@@ -102,10 +116,17 @@ async def run_sweep(base_url: str, model: str):
     headers = ["Scenario", "Concurrency", "Prefill Batch", "Mean TTFT (ms)", "p95 TTFT (ms)", "Per-Req TPS", "System Throughput"]
     print(tabulate(results_table, headers=headers, tablefmt="github"))
     
+    best_mixed = None
     try:
         mixed_results = [r for r in results_table if r[0] == "Mixed Queries"]
         if mixed_results:
             best = max(mixed_results, key=lambda x: (float(x[6]), -float(x[3])))
+            best_mixed = {
+                "concurrency": best[1],
+                "prefill_batch": best[2],
+                "system_throughput_tps": float(best[6]),
+                "mean_ttft_ms": float(best[3]),
+            }
             print("\n" + "=" * 85)
             print("  🏆 BEST REAL-WORLD CONFIGURATION (Mixed Queries)")
             print("=" * 85)
@@ -115,6 +136,25 @@ async def run_sweep(base_url: str, model: str):
             print("=" * 85)
     except Exception:
         pass
+
+    if output:
+        hw = get_hardware_info()
+        payload = {
+            "type": "cb_sweep",
+            "generated_at": generated_at,
+            "model": model,
+            "hardware": hw,
+            "configs": {
+                "max_tokens": max_tokens,
+                "configs_tested": [list(c) for c in configs],
+            },
+            "results": structured_results,
+            "best_mixed": best_mixed,
+        }
+        os.makedirs(os.path.dirname(output) if os.path.dirname(output) else ".", exist_ok=True)
+        with open(output, "w") as fh:
+            json.dump(payload, fh, indent=2)
+        print(f"\n  Sweep results saved → {output}")
 
 
 async def run_sequential_multimodal(base_url: str, model: str):
@@ -203,10 +243,11 @@ if __name__ == "__main__":
     parser.add_argument("--model", default="srswti/bodega-raptor-90m", help="Model to use for sweep")
     parser.add_argument("--multimodal-sequential", action="store_true",
                         help="Run 3 sequential requests for multimodal models instead of CB sweep")
+    parser.add_argument("--output", default="", help="Save sweep results as JSON to this path")
     args = parser.parse_args()
     print("  [Telemetry] Opening mactop in a new Terminal window...")
     open_mactop_window()
     if args.multimodal_sequential:
         asyncio.run(run_sequential_multimodal(args.base_url, args.model))
     else:
-        asyncio.run(run_sweep(args.base_url, args.model))
+        asyncio.run(run_sweep(args.base_url, args.model, output=args.output))

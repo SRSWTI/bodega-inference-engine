@@ -800,7 +800,11 @@ def open_mactop_window() -> None:
         return
     if not shutil.which("mactop"):
         return
-    os.system("osascript -e 'tell application \"Terminal\" to do script \"mactop\"' >/dev/null 2>&1")
+    script = '''tell application "Terminal"
+    do script "mactop"
+    activate
+end tell'''
+    os.system(f"osascript -e '{script}' >/dev/null 2>&1")
 
 
 # ---------------------------------------------------------------------------

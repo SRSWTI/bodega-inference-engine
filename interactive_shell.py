@@ -447,9 +447,13 @@ def live_continuous_batching():
 
     console.print("\n[bold yellow]Firing continuous batching cluster...[/bold yellow]\n")
     
-    # Open mactop side-by-side in a new Terminal window
+    # Open mactop in a new Terminal window and focus it
     console.print("  [dim]Opening mactop telemetry window...[/dim]")
-    os.system("osascript -e 'tell application \"Terminal\" to do script \"mactop\"' >/dev/null 2>&1")
+    script = '''tell application "Terminal"
+    do script "mactop"
+    activate
+end tell'''
+    os.system(f"osascript -e '{script}' >/dev/null 2>&1")
     
     # Auto-load the model (config.json-based detection — no retry)
     console.print(f"  [cyan]Loading model {mid}...[/cyan]")
