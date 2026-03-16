@@ -55,27 +55,31 @@ echo -e "\n${BLUE}Downloading BodegaOS Sensors to ${DOWNLOAD_DIR}...${NC}"
 echo -e "URL: $DOWNLOAD_URL\n"
 curl -L -# -o "$SENSORS_PATH" "$DOWNLOAD_URL"
 SENSORS_STATUS=$?
-# 6. Download BodegaOS Client
-CLIENT_VERSION="1.0.178"
-CLIENT_FILENAME="BodegaOS-${CLIENT_VERSION}-arm64.dmg"
-CLIENT_URL="https://assets.srswti.com/darwin/arm64/${CLIENT_FILENAME}"
-CLIENT_PATH="${DOWNLOAD_DIR}/${CLIENT_FILENAME}"
-echo -e "\n${BLUE}Downloading BodegaOS Client...${NC}"
-echo -e "URL: $CLIENT_URL\n"
-curl -L -# -o "$CLIENT_PATH" "$CLIENT_URL"
-CLIENT_STATUS=$?
+# 6. Download BodegaOS Client (commented out — see note below for where to get it)
+# When you downloaded the sensors, there is a Bodega Client app as well.
+# You can download it from srswti.com/downloads or run: curl -L https://assets.srswti.com/darwin/arm64/
+# to see available builds.
+# CLIENT_VERSION="1.0.178"
+# CLIENT_FILENAME="BodegaOS-${CLIENT_VERSION}-arm64.dmg"
+# CLIENT_URL="https://assets.srswti.com/darwin/arm64/${CLIENT_FILENAME}"
+# CLIENT_PATH="${DOWNLOAD_DIR}/${CLIENT_FILENAME}"
+# echo -e "\n${BLUE}Downloading BodegaOS Client...${NC}"
+# echo -e "URL: $CLIENT_URL\n"
+# curl -L -# -o "$CLIENT_PATH" "$CLIENT_URL"
+# CLIENT_STATUS=$?
 
-if [[ $SENSORS_STATUS -eq 0 && $CLIENT_STATUS -eq 0 ]]; then
-    echo -e "\n${GREEN}✓ Both downloads complete! Files saved to: ${DOWNLOAD_DIR}${NC}"
+if [[ $SENSORS_STATUS -eq 0 ]]; then
+    echo -e "\n${GREEN}✓ Sensors download complete! File saved to: ${DOWNLOAD_DIR}${NC}"
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}        INSTALLATION INSTRUCTIONS${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "\n${YELLOW}Step 1 — Install BodegaOS Sensors (required):${NC}"
-    echo -e "  • Double-click:  ${SENSORS_PATH}"
-    echo -e "  • Drag & drop ${GREEN}BodegaOS Sensors${NC} into the Applications folder"
-    echo -e "\n${YELLOW}Step 2 — Install BodegaOS (optional):${NC}"
-    echo -e "  • Double-click:  ${CLIENT_PATH}"
-    echo -e "  • Drag & drop ${GREEN}BodegaOS${NC} into the Applications folder"
+    echo -e "  1. Open the downloaded Bodega Sensors.dmg file from your current folder."
+    echo -e "  2. Drag & drop ${GREEN}BodegaOS Sensors${NC} into the Applications folder"
+    echo -e "\n${YELLOW}Step 2 — Bodega Client app (optional, skip if you only need the inference engine):${NC}"
+    echo -e "  When you downloaded the sensors, there is a ${GREEN}Bodega Client${NC} app as well."
+    echo -e "  Download from ${BLUE}srswti.com/downloads${NC} or directly:"
+    echo -e "  ${YELLOW}https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}  ✓ You're all set and ready to go!${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -86,12 +90,7 @@ if [[ $SENSORS_STATUS -eq 0 && $CLIENT_STATUS -eq 0 ]]; then
     echo -e "    from an Apple Silicon-accelerated browser, chat, and speech engine,"
     echo -e "    to much more. Install it only if you want to explore beyond the"
     echo -e "    inference engine."
-    echo -e "\n${BLUE}Getting Started with BodegaOS:${NC}"
-    echo -e "  1. Open BodegaOS and log in with Google."
-    echo -e "  2. Go to Chat → Bodega Hub → Advanced."
-    echo -e "  3. Click Docs to learn how to use the Inference Engine"
-    echo -e "     or add Bodega as a provider."
 else
-    echo -e "\n${RED}✗ One or more downloads failed.${NC}"
+    echo -e "\n${RED}✗ Sensors download failed.${NC}"
     exit 1
 fi

@@ -39,7 +39,7 @@ else
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
-    echo -e "1. Open the downloaded .dmg file from your current folder."
+    echo -e "1. Open the downloaded Bodega Sensors.dmg file from your current folder."
     echo -e "2. Drag and drop ${GREEN}Bodega Sensors${NC} into your Applications folder."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once you have copied it to Applications..."
