@@ -1222,6 +1222,8 @@ The measured gap on M4 Max with `Qwen3.5-2B-6bit`:
 | HTTP with streaming (`text/event-stream`) | ~600 tok/s |
 | Gap | ~300 tok/s (~33% overhead) |
 
+> **A note on the measured 600 tok/s figure:** This was recorded on a live macOS system, not an isolated benchmark environment. Apple Silicon's unified memory architecture makes this more significant than it would be on a discrete GPU system. On a dedicated GPU, inference has its own VRAM and the CPU/system RAM is separate. On Apple Silicon, everything — the inference engine, WindowServer, your browser's GPU process, Electron renderers — shares the same memory bus and the same Metal command queue. So a busy Electron app isn't just using CPU, it's genuinely competing for the same memory bandwidth that the inference engine depends on. The true HTTP ceiling on a fully idle machine may be measurably higher than 600 tok/s. The in-process ~900 tok/s figure is a tighter measurement by comparison since it bypasses the HTTP layer entirely, but both numbers should be treated as real-world approximations rather than hardware ceilings.
+
 ![Throughput across modes](assets/throughput-across.png)
 
 ![What changes with batching](assets/what-changes-with-batched.png)
