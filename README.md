@@ -12,7 +12,7 @@ chmod +x setup.sh
 
 ### Benchmarks & Leaderboard
 
-Run the **Engine Comparison** (LM Studio vs Bodega CB) with leaderboard upload:
+Run the **Runtime Comparison** (LM Studio vs Bodega Inference Engine) with leaderboard upload:
 
 ```bash
 # Ensure the same model is loaded in LM Studio with Max Concurrent Predictions = 32
@@ -960,7 +960,7 @@ In practice, a well-matched draft model (same tokenizer family, same training di
 
 The draft model **must share the same tokenizer** as the target model. Using a model from a different family (e.g. a Llama draft with a Qwen target) will produce garbage. Use a smaller variant from the same model family — for example, a `0.6B` or `1B` Qwen3 variant to accelerate a `8B` or `32B` Qwen3 target.
 
-> **Note:** Speculative decoding and continuous batching cannot be used simultaneously. Speculative decoding is optimal for single-user latency. Continuous batching is optimal for multi-user throughput. Choose based on your workload.
+> **Note:** Speculative decoding and continuous batching cannot be used simultaneously. Speculative decoding is optimal for single-user latency. Continuous batching is optimal for multi-user throughput, or multiple concurrency. Choose based on your workload.
 
 #### Configuration
 
@@ -1020,7 +1020,7 @@ The response format is identical to a standard completion — no extra fields, n
 
 ### Continuous Batching (High Throughput)
 
-Bodega's continuous batching engine maximizes throughput for multi-user workloads on Apple Silicon. It is the primary mechanism for serving multiple concurrent users efficiently, and the numbers are dramatic — small SRSWTI models and community models like `mlx-community/Qwen3.5-2B-6bit` approach **~900 tok/s system throughput** on an m1 Max when measured in-process. At the HTTP server layer, measured throughput currently reaches **~600 tok/s** — the gap is not the inference engine, it is the HTTP serialization layer, and we are actively working to close it. See the [HTTP Bottleneck](#the-http-bottleneck) section below for details.
+Bodega's continuous batching engine maximizes throughput for multi-user workloads on Apple Silicon. It is the primary mechanism for serving multiple concurrent users efficiently, and the numbers are dramatic — small SRSWTI models and community models like `mlx-community/Qwen3.5-2B-6bit` approach **~900 tok/s system throughput** on an m4 Max when measured in-process. At the HTTP server layer, measured throughput currently reaches **~600 tok/s** — the gap is not the inference engine, it is the HTTP serialization layer, and we are actively working to close it. See the [HTTP Bottleneck](#the-http-bottleneck) section below for details.
 
 #### How It Works
 
