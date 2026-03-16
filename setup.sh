@@ -9,8 +9,8 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Bodega Inference Engine Setup ===${NC}"
 echo ""
-echo -e "${YELLOW}Step 1: Installing BodegaOS Sensors & Inference Engine${NC}"
-read -p "Do you already have BodegaOS Sensors installed? [y/N]: " has_sensors
+echo -e "${YELLOW}Step 1: Installing Bodega Sensors & Inference Engine${NC}"
+read -p "Do you already have Bodega Sensors installed? [y/N]: " has_sensors
 echo ""
 
 if [[ "$has_sensors" == "y" || "$has_sensors" == "Y" ]]; then
@@ -18,14 +18,13 @@ if [[ "$has_sensors" == "y" || "$has_sensors" == "Y" ]]; then
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
-    echo -e "1. Open ${GREEN}BodegaOS Sensors${NC} from your Applications folder."
+    echo -e "1. Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
     echo -e "2. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON."
-    echo -e "3. Click ${GREEN}Yes${NC} to proceed."
-    echo -e "4. Wait for the toggle to turn ${GREEN}GREEN${NC}."
+    echo -e "3. Wait for the toggle to turn ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once you have turned the toggle GREEN..."
 else
-    echo -e "This will download and install the BodegaOS Sensors app, which contains the Inference Engine."
+    echo -e "This will download and install the Bodega Sensors app, which contains the Inference Engine."
     echo ""
 
     # Run the local installation script
@@ -41,21 +40,20 @@ else
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
     echo -e "1. Open the downloaded .dmg file from your current folder."
-    echo -e "2. Drag and drop ${GREEN}BodegaOS Sensors${NC} into your Applications folder."
+    echo -e "2. Drag and drop ${GREEN}Bodega Sensors${NC} into your Applications folder."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once you have copied it to Applications..."
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "3. Double-click ${GREEN}BodegaOS Sensors${NC} in your Applications folder to open it."
+    echo -e "3. Double-click ${GREEN}Bodega Sensors${NC} in your Applications folder to open it."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once the app is open..."
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "4. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and click to turn it ON."
-    echo -e "5. A prompt will appear — click ${GREEN}Yes${NC} to proceed."
-    echo -e "6. Wait for the toggle to turn ${GREEN}GREEN${NC}."
+    echo -e "5. Wait for the toggle to turn ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once you have turned the toggle GREEN..."
 fi
@@ -142,7 +140,7 @@ fi
 echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
 echo "Which model(s) would you like to download?"
-echo "1) Bodega Raptor 90M (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
+echo "1) Bodega ORION 0.6B (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
 echo "2) Bodega Raptor 8B (srswti/bodega-raptor-8b-mxfp4) - Powerful and small parameter model"
 echo "3) Both Models"
 echo "4) Custom Model Repository from HuggingFace"
@@ -222,7 +220,7 @@ echo -e "\n${YELLOW}Connecting to Bodega Inference Engine on localhost:44468...$
 
 # Wait until health check passes
 while ! curl -s http://localhost:44468/health >/dev/null; do
-    echo -e "${RED}Waiting for localhost:44468. Please ensure the toggle is GREEN in BodegaOS Sensors!${NC}"
+    echo -e "${RED}Waiting for localhost:44468. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
     sleep 3
 done
 
