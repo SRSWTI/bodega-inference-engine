@@ -104,7 +104,7 @@ The standard way to run multiple models is to keep calling the `/v1/admin/load-m
 curl -X POST http://localhost:44468/v1/admin/load-model \
   -H "Content-Type: application/json" \
   -d '{
-    "model_id": "bodega-raptor-90m",
+    "model_id": "bodega-orion-0.6b",
     "model_type": "lm",
     "model_path": "srswti/bodega-orion-0.6b"
   }'

@@ -13,7 +13,7 @@ Usage:
 
     # Custom model and query count
     python scripts/benchmark_http_concurrency.py \
-        --model bodega-raptor-90m \
+        --model bodega-orion-0.6b \
         --num-queries 32 \
         --max-tokens 128
 
@@ -21,7 +21,7 @@ Usage:
     python scripts/benchmark_http_concurrency.py --compare-sequential
 
 Prerequisites:
-    - Server running with bodega-raptor-90m loaded (with continuous_batching: true)
+    - Server running with bodega-orion-0.6b loaded (with continuous_batching: true)
     - For clean benchmark: restart with config_benchmark_90m.yaml
 """
 

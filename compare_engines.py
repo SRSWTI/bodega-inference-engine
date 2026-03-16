@@ -11,7 +11,7 @@ side-by-side and produces a structured comparison report.
 Both servers are tested with the same model, same prompts, and same token
 budget at each concurrency level.  Bodega is automatically configured with
 the sweep-optimal prefill-batch size at each concurrency level (derived from
-sweep_cb_configs.py results on M1 Max with bodega-raptor-90m):
+sweep_cb_configs.py results on M1 Max with bodega-orion-0.6b):
 
     C=1–8   →  prefill-batch=4  (best latency/throughput balance)
     C=16    →  prefill-batch=8  (646 tok/s system throughput)

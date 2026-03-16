@@ -607,7 +607,7 @@ models:
     model_path: "srswti/bodega-solomon-9b"
     max_concurrency: 1
 
-  - model_id: "bodega-raptor-90m"
+  - model_id: "bodega-orion-0.6b"
     model_type: "lm"
     model_path: "srswti/bodega-orion-0.6b"
     continuous_batching: true
