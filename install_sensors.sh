@@ -78,8 +78,22 @@ if [[ $SENSORS_STATUS -eq 0 ]]; then
     echo -e "  2. Drag & drop ${GREEN}BodegaOS Sensors${NC} into the Applications folder"
     echo -e "\n${YELLOW}Step 2 — Bodega Client app (optional, skip if you only need the inference engine):${NC}"
     echo -e "  When you downloaded the sensors, there is a ${GREEN}Bodega Client${NC} app as well."
-    echo -e "  Download from ${BLUE}srswti.com/downloads${NC} or directly:"
-    echo -e "  ${YELLOW}https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
+    echo -e "  Download from ${BLUE}srswti.com/downloads${NC}, or directly:"
+    echo -e "  ${BLUE}https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
+    echo -e "  Or via curl:"
+    echo -e "  ${BLUE}curl -L -o \"\$HOME/Downloads/BodegaOS-1.0.178-arm64.dmg\" https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
+    read -p "  Download Bodega Client via curl now? [y/N]: " dl_client
+    if [[ "$dl_client" == "y" || "$dl_client" == "Y" ]]; then
+        CLIENT_URL="https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg"
+        CLIENT_PATH="${DOWNLOAD_DIR}/BodegaOS-1.0.178-arm64.dmg"
+        echo -e "\n${BLUE}Downloading Bodega Client...${NC}"
+        curl -L -# -o "$CLIENT_PATH" "$CLIENT_URL"
+        if [[ $? -eq 0 ]]; then
+            echo -e "${GREEN}✓ Bodega Client saved to: ${CLIENT_PATH}${NC}"
+        else
+            echo -e "${RED}✗ Bodega Client download failed.${NC}"
+        fi
+    fi
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}  ✓ You're all set and ready to go!${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
