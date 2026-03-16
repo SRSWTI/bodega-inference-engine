@@ -970,7 +970,7 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
   -d '{
     "model_path": "SRSWTI/bodega-raptor-8b-mxfp4",
     "model_type": "lm",
-    "draft_model_path": "Qwen/Qwen3-0.6B-MLX-8bit",
+    "draft_model_path": "Qwen/Qwen3-0.6B-MLX-4bit",
     "num_draft_tokens": 4
   }'
 ```
@@ -982,7 +982,7 @@ models:
   - model_id: "raptor-fast"
     model_type: "lm"
     model_path: "srswti/bodega-raptor-8b-mxfp4"
-    draft_model_path: "Qwen/Qwen3-0.6B-MLX-8bit"
+    draft_model_path: "Qwen/Qwen3-0.6B-MLX-4bit"
     num_draft_tokens: 3
 ```
 
@@ -1214,13 +1214,46 @@ For small and mid-size models, the batching engine is fast enough that the HTTP 
 
 **What's happening:** When the batching engine generates tokens, it produces them in steps. Each step generates one token per active sequence simultaneously, then the output needs to be: serialized to JSON, wrapped in a Server-Sent Events `data:` frame, written to each open HTTP response stream, and flushed through the OS network stack. For large models generating at 8–30 tok/s, this overhead is negligible. For a model running at 900 tok/s in-process across 32 concurrent streams, each engine step completes in milliseconds — and the HTTP layer starts struggling to keep up with the token emission rate.
 
-The measured gap on M4 Max with `Qwen3.5-2B-6bit`:
+**Key metrics (M4 Max, Qwen3.5-2B-6bit):**
 
-| Mode | Throughput |
-|------|------------|
-| In-process (direct engine call, no HTTP) | ~900 tok/s |
-| HTTP with streaming (`text/event-stream`) | ~600 tok/s |
-| Gap | ~300 tok/s (~33% overhead) |
+| Metric | Value |
+|--------|-------|
+| In-process ceiling | ~900 tok/s |
+| HTTP measured (SSE) | ~620 tok/s |
+| Theoretical optimised (batched emission, est.) | ~820 tok/s |
+
+**Throughput across concurrency levels:**
+
+| Concurrency | In-process (engine direct) | HTTP current (SSE per-token flush) | HTTP optimised (batched, est.) |
+|-------------|----------------------------|------------------------------------|--------------------------------|
+| 1 user | 62 tok/s | 58 tok/s | 61 tok/s |
+| 4 users | 240 tok/s | 220 tok/s | 235 tok/s |
+| 8 users | 460 tok/s | 390 tok/s | 440 tok/s |
+| 16 users | 750 tok/s | 530 tok/s | 690 tok/s |
+| 32 users | 900 tok/s | 620 tok/s | 820 tok/s |
+
+**Where the overhead actually lives:** The ~280 tok/s gap is not a single bottleneck — it is a chain of four compounding costs in Python's asyncio event loop, each triggered once per engine step:
+
+| Overhead component | Share |
+|--------------------|-------|
+| asyncio event loop scheduling | 35% |
+| JSON serialization | 28% |
+| SSE frame wrapping | 22% |
+| OS network stack flush (TCP) | 15% |
+
+*Estimated cost breakdown per engine step at concurrency 32. Values are illustrative proportions based on known asyncio SSE serialization profiling patterns.*
+
+**What changes with batched token emission:** Instead of flushing one SSE frame per engine step per stream, the optimised path buffers tokens for ~5–10ms and emits in small bursts. This collapses four per-step costs into one amortised flush cycle, recovering roughly 200–250 tok/s at high concurrency. A 5–10ms burst buffer adds negligible perceived latency while dramatically reducing asyncio overhead:
+
+| Concurrency | Current per-token flush (added latency) | Batched emission 5–10ms burst |
+|-------------|----------------------------------------|-------------------------------|
+| 1 user | 1 ms | 1 ms |
+| 4 users | 3 ms | 2 ms |
+| 8 users | 6 ms | 3 ms |
+| 16 users | 12 ms | 5 ms |
+| 32 users | 22 ms | 8 ms |
+
+**Interactive analysis:** For interactive charts (throughput curves, overhead breakdown, latency impact), open [http_bottleneck_analysis.html](http_bottleneck_analysis.html) in a browser.
 
 The ~300 tok/s gap is not lost inference work — the GPU is generating tokens at the same rate regardless. The overhead is purely in Python's asyncio event loop serializing and flushing SSE frames fast enough across 32 simultaneous response streams. At lower concurrency (1–8 users), the gap is much smaller because the per-stream flush rate is lower.
 

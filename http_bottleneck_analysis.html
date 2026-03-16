@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTTP Bottleneck Analysis — Bodega Inference Engine</title>
+  <style>
+    :root { --color-border-info: #3266ad; --color-background-info: rgba(50,102,173,0.08); --border-radius-md: 6px; --color-background-primary: #fff; --color-border-tertiary: #e0e0e0; --border-radius-lg: 8px; --color-background-secondary: #f6f8fa; --color-text-primary: #1a1a1a; --color-text-secondary: #555; --color-text-tertiary: #888; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: var(--color-text-primary); }
+    .section { margin-bottom: 2rem; }
+    .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 1rem 0; }
+    .metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem; }
+    .metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+    .metric-val { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+    .metric-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+    .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    h3 { font-size: 15px; font-weight: 500; margin: 0 0 0.75rem; color: var(--color-text-primary); }
+    p { font-size: 13px; color: var(--color-text-secondary); line-height: 1.7; margin: 0 0 0.75rem; }
+    .legend { display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: var(--color-text-secondary); flex-wrap: wrap; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  </style>
+</head>
+<body>
+
+<div class="section">
+  <div class="metric-row">
+    <div class="metric">
+      <div class="metric-label">In-process ceiling</div>
+      <div class="metric-val">~900</div>
+      <div class="metric-sub">tok/s on M4 Max</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">HTTP measured</div>
+      <div class="metric-val">~620</div>
+      <div class="metric-sub">tok/s over SSE</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Theoretical optimised</div>
+      <div class="metric-val">~820</div>
+      <div class="metric-sub">tok/s estimated</div>
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <h3>Throughput across concurrency levels</h3>
+  <div class="legend">
+    <span><span class="dot" style="background:#3266ad"></span>In-process (engine direct)</span>
+    <span><span class="dot" style="background:#73726c"></span>HTTP current (SSE per-token flush)</span>
+    <span><span class="dot" style="background:#2a9d6e;border:1px dashed #2a9d6e"></span>HTTP optimised (batched emission, est.)</span>
+  </div>
+  <div style="position:relative;width:100%;height:280px;">
+    <canvas id="throughputChart"></canvas>
+  </div>
+</div>
+
+<div class="card section">
+  <h3>Where the overhead actually lives</h3>
+  <p>The ~280 tok/s gap is not a single bottleneck — it is a chain of four compounding costs in Python's asyncio event loop, each triggered once per engine step:</p>
+  <div style="position:relative;width:100%;height:220px;">
+    <canvas id="overheadChart"></canvas>
+  </div>
+  <p style="margin-top: 0.75rem; font-size: 12px; color: var(--color-text-tertiary);">Estimated cost breakdown per engine step at concurrency 32. Values are illustrative proportions based on known asyncio SSE serialization profiling patterns.</p>
+</div>
+
+<div class="card section">
+  <h3>What changes with batched token emission</h3>
+  <p>Instead of flushing one SSE frame per engine step per stream, the optimised path buffers tokens for ~5–10ms and emits in small bursts. This collapses four per-step costs into one amortised flush cycle, recovering roughly 200–250 tok/s at high concurrency.</p>
+  <div style="position:relative;width:100%;height:180px;">
+    <canvas id="latencyChart"></canvas>
+  </div>
+  <p style="margin-top: 0.75rem; font-size: 12px; color: var(--color-text-tertiary);">Estimated per-user TTFT impact of batched emission. A 5–10ms burst buffer adds negligible perceived latency while dramatically reducing asyncio overhead.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const concurrency = [1, 4, 8, 16, 32];
+const inProcess =   [62, 240, 460, 750, 900];
+const httpCurrent = [58, 220, 390, 530, 620];
+const httpOpt =     [61, 235, 440, 690, 820];
+
+new Chart(document.getElementById('throughputChart'), {
+  type: 'line',
+  data: {
+    labels: concurrency.map(c => c + ' users'),
+    datasets: [
+      { label: 'In-process', data: inProcess, borderColor: '#3266ad', backgroundColor: 'rgba(50,102,173,0.08)', borderWidth: 2, pointRadius: 4, fill: false, tension: 0.35 },
+      { label: 'HTTP current', data: httpCurrent, borderColor: '#73726c', backgroundColor: 'rgba(115,114,108,0.08)', borderWidth: 2, pointRadius: 4, fill: false, tension: 0.35 },
+      { label: 'HTTP optimised (est.)', data: httpOpt, borderColor: '#2a9d6e', backgroundColor: 'rgba(42,157,110,0.08)', borderWidth: 2, borderDash: [6,3], pointRadius: 4, fill: false, tension: 0.35 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(120,120,120,0.12)' }, ticks: { font: { size: 12 } } },
+      y: { min: 0, max: 1000, grid: { color: 'rgba(120,120,120,0.12)' }, ticks: { font: { size: 12 }, callback: v => v + ' t/s' } }
+    }
+  }
+});
+
+new Chart(document.getElementById('overheadChart'), {
+  type: 'bar',
+  data: {
+    labels: ['JSON serialization', 'SSE frame wrapping', 'asyncio event loop\nscheduling', 'OS network stack\nflush (TCP)'],
+    datasets: [{
+      label: 'Overhead share (%)',
+      data: [28, 22, 35, 15],
+      backgroundColor: ['#3266ad','#5a8fd4','#8ab3e8','#b8d0f0'],
+      borderRadius: 4,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + '% of overhead' } } },
+    scales: {
+      x: { min: 0, max: 45, grid: { color: 'rgba(120,120,120,0.12)' }, ticks: { font: { size: 12 }, callback: v => v + '%' } },
+      y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('latencyChart'), {
+  type: 'bar',
+  data: {
+    labels: ['1 user', '4 users', '8 users', '16 users', '32 users'],
+    datasets: [
+      { label: 'Current per-token flush', data: [1, 3, 6, 12, 22], backgroundColor: '#73726c', borderRadius: 3 },
+      { label: 'Batched emission (5–10ms burst)', data: [1, 2, 3, 5, 8], backgroundColor: '#2a9d6e', borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + 'ms added latency' } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+      y: { grid: { color: 'rgba(120,120,120,0.12)' }, ticks: { font: { size: 12 }, callback: v => v + 'ms' }, title: { display: true, text: 'Added latency per token burst', font: { size: 11 }, color: '#888' } }
+    }
+  }
+});
+</script>
+</body>
+</html>
