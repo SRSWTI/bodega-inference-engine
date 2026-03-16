@@ -142,7 +142,7 @@ fi
 echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
 echo "Which model(s) would you like to download?"
-echo "1) Bodega Raptor 90M (srswti/bodega-raptor-90m) - Ultra-fast, great for continuous batching tests"
+echo "1) Bodega Raptor 90M (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
 echo "2) Bodega Raptor 8B (srswti/bodega-raptor-8b-mxfp4) - Powerful and small parameter model"
 echo "3) Both Models"
 echo "4) Custom Model Repository from HuggingFace"
@@ -151,7 +151,7 @@ read -p "Select an option [1-5]: " model_choice
 
 MODELS=()
 if [[ "$model_choice" == "1" || "$model_choice" == "3" ]]; then
-    MODELS+=("srswti/bodega-raptor-90m")
+    MODELS+=("srswti/bodega-orion-0.6b")
 fi
 if [[ "$model_choice" == "2" || "$model_choice" == "3" ]]; then
     MODELS+=("srswti/bodega-raptor-8b-mxfp4")
@@ -164,7 +164,7 @@ if [[ "$model_choice" == "4" ]]; then
 fi
 
 if [ ${#MODELS[@]} -eq 0 ]; then
-    TARGET_MODEL="srswti/bodega-raptor-90m"
+    TARGET_MODEL="srswti/bodega-orion-0.6b"
 else
     TARGET_MODEL=${MODELS[0]}
 fi
@@ -180,17 +180,40 @@ if [[ "$model_choice" == "5" ]]; then
 
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     mkdir -p results
+    SKIP_LAST_JSON=""
 
     if [[ "$run_bench" == "1" ]]; then
         echo -e "\n${BLUE}Running CB Configuration Sweep — results will open in browser when done...${NC}"
         python sweep_cb_configs.py --model "$TARGET_MODEL" --output "results/sweep_${TIMESTAMP}.json"
+        SKIP_LAST_JSON="results/sweep_${TIMESTAMP}.json"
     elif [[ "$run_bench" == "2" ]]; then
         echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
-        python compare_engines.py --model "$TARGET_MODEL" --output "results/compare_${TIMESTAMP}.json"
+        LMSTUDIO_ID="${TARGET_MODEL##*/}"
+        python compare_engines.py --model "$TARGET_MODEL" \
+            --lmstudio-model-id "$LMSTUDIO_ID" \
+            --output "results/compare_${TIMESTAMP}.json" \
+            --leaderboard-url "https://leaderboard.srswti.com"
+        SKIP_LAST_JSON="results/compare_${TIMESTAMP}.json"
     else
         echo -e "\nYou can run benchmarks anytime:"
         echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
         echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
+    fi
+
+    if [[ -n "$SKIP_LAST_JSON" && -f "$SKIP_LAST_JSON" && "$run_bench" == "1" ]]; then
+        echo ""
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}  🏆 Share your results with the community!${NC}"
+        echo ""
+        echo -e "  Would you like to post your results to the global leaderboard?"
+        echo -e "  ${YELLOW}Only your chip, RAM, and best system TPS are shared${NC} — nothing"
+        echo -e "  personal. It helps everyone see what's possible on different hardware."
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        read -p "  Post to leaderboard? [Y/n]: " post_leaderboard
+        if [[ "$post_leaderboard" != "n" && "$post_leaderboard" != "N" ]]; then
+            echo -e "\n${BLUE}Uploading to leaderboard.srswti.com...${NC}"
+            python show_results.py "$SKIP_LAST_JSON" --upload "https://leaderboard.srswti.com"
+        fi
     fi
     exit 0
 fi
@@ -353,6 +376,7 @@ export BODEGA_SKIP_TELEMETRY=$SKIP_TELEMETRY
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p results
 
+LAST_JSON=""
 if [[ "$run_bench" == "1" ]]; then
     echo -e "\n${BLUE}Running CB Sweep — results will open in browser when done...${NC}"
     if [[ "$IS_MULTIMODAL" == "1" ]]; then
@@ -362,10 +386,15 @@ if [[ "$run_bench" == "1" ]]; then
         python sweep_cb_configs.py --model "$TARGET_MODEL" \
             --output "results/sweep_${TIMESTAMP}.json"
     fi
+    LAST_JSON="results/sweep_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "2" ]]; then
     echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
+    LMSTUDIO_ID="${TARGET_MODEL##*/}"
     python compare_engines.py --model "$TARGET_MODEL" \
-        --output "results/compare_${TIMESTAMP}.json"
+        --lmstudio-model-id "$LMSTUDIO_ID" \
+        --output "results/compare_${TIMESTAMP}.json" \
+        --leaderboard-url "https://leaderboard.srswti.com"
+    LAST_JSON="results/compare_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "3" ]]; then
     echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
@@ -374,5 +403,22 @@ else
     echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
     echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
     echo -e "  ${YELLOW}python interactive_shell.py${NC}  (live chat and visuals)"
+fi
+
+# ─── Leaderboard prompt (after CB sweep only; compare auto-uploads) ───────────
+if [[ -n "$LAST_JSON" && -f "$LAST_JSON" && "$run_bench" == "1" ]]; then
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}  🏆 Share your results with the community!${NC}"
+    echo ""
+    echo -e "  Would you like to post your results to the global leaderboard?"
+    echo -e "  ${YELLOW}Only your chip, RAM, and best system TPS are shared${NC} — nothing"
+    echo -e "  personal. It helps everyone see what's possible on different hardware."
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -p "  Post to leaderboard? [Y/n]: " post_leaderboard
+    if [[ "$post_leaderboard" != "n" && "$post_leaderboard" != "N" ]]; then
+        echo -e "\n${BLUE}Uploading to leaderboard.srswti.com...${NC}"
+        python show_results.py "$LAST_JSON" --upload "https://leaderboard.srswti.com"
+    fi
 fi
 

@@ -10,6 +10,20 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+### Benchmarks & Leaderboard
+
+Run the **Engine Comparison** (LM Studio vs Bodega CB) with leaderboard upload:
+
+```bash
+# Ensure the same model is loaded in LM Studio with Max Concurrent Predictions = 32
+python compare_engines.py --model srswti/bodega-orion-0.6b \
+    --lmstudio-model-id bodega-orion-0.6b \
+    --output results/compare_$(date +%Y%m%d_%H%M%S).json \
+    --leaderboard-url https://leaderboard.srswti.com
+```
+
+Use `--lmstudio-model-id` to match the model ID shown in LM Studio (often the short name, e.g. `bodega-orion-0.6b`). Results are posted to the [global leaderboard](https://leaderboard.srswti.com).
+
 ---
 
 # Bodega Inference Engine
@@ -92,7 +106,7 @@ curl -X POST http://localhost:44468/v1/admin/load-model \
   -d '{
     "model_id": "bodega-raptor-90m",
     "model_type": "lm",
-    "model_path": "srswti/bodega-raptor-90m"
+    "model_path": "srswti/bodega-orion-0.6b"
   }'
 
 # Load a multimodal model alongside it
@@ -686,7 +700,7 @@ Gracefully shut down a model's subprocess and unregister it from the engine, ins
 curl -X DELETE http://localhost:44468/v1/admin/unload-model/bodega-raptor-0.9b
 
 # Works with full path model IDs too
-curl -X DELETE http://localhost:44468/v1/admin/unload-model/srswti/bodega-raptor-90m
+curl -X DELETE http://localhost:44468/v1/admin/unload-model/srswti/bodega-orion-0.6b
 ```
 
 ```python
@@ -1304,7 +1318,7 @@ print(f"Active requests: {stats.get('active_requests', 0)}")
 - **Coding CLI:** [axe on GitHub](https://github.com/SRSWTI/axe)
 
 **Fastest (edge/laptop):**
-- `SRSWTI/bodega-raptor-90m` — Sub-100M params, exceptional tool calling and reasoning at the edgehttps://huggingface.co/srswti
+- `srswti/bodega-orion-0.6b` — Sub-100M params, exceptional tool calling and reasoning at the edgehttps://huggingface.co/srswti
 - `SRSWTI/bodega-raptor-0.9b` — 400+ tok/s, ideal for classification and query reformulation
 - `SRSWTI/axe-turbo-1b` — Sub-50ms first token, edge-first agentic coding
 

@@ -1,11 +1,12 @@
 __pycache__ 
 .venv
 .vscode
+results/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
+leaderboard_server.py
 # C extensions
 *.so
 *.pyx   

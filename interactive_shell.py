@@ -147,19 +147,19 @@ def get_first_loaded_model() -> str:
                     return m.get('id')
     except Exception:
         pass
-    return "srswti/bodega-raptor-90m"
+    return "srswti/bodega-orion-0.6b"
 
 def stream_download():
     console.print("\n[bold cyan][+][/bold cyan] Stream Model Download")
     console.print("    This invokes the /v1/admin/download-model-stream endpoint.")
-    console.print("    1) srswti/bodega-raptor-90m (Small, quick test)")
+    console.print("    1) srswti/bodega-orion-0.6b (Small, quick test)")
     console.print("    2) srswti/bodega-raptor-8b-mxfp4 (Full 8B model)")
     console.print("    3) Custom HuggingFace repo ID")
     
     choice = input("Select an option: ")
     
     if choice == '1':
-        model_path = "srswti/bodega-raptor-90m"
+        model_path = "srswti/bodega-orion-0.6b"
     elif choice == '2':
         model_path = "srswti/bodega-raptor-8b-mxfp4"
     elif choice == '3':
@@ -206,7 +206,7 @@ def get_model_type(model_path: str) -> str:
 
 def load_model():
     console.print("\n[bold cyan][+][/bold cyan] Dynamically Load a Model")
-    path = Prompt.ask("Enter model_path", default="srswti/bodega-raptor-90m")
+    path = Prompt.ask("Enter model_path", default="srswti/bodega-orion-0.6b")
     if not path: return
     mid = Prompt.ask("Enter model_id (alias)", default=path)
     
@@ -609,7 +609,7 @@ models:
 
   - model_id: "bodega-raptor-90m"
     model_type: "lm"
-    model_path: "srswti/bodega-raptor-90m"
+    model_path: "srswti/bodega-orion-0.6b"
     continuous_batching: true
     cb_max_num_seqs: 128
 ----------------------------------------
@@ -625,7 +625,7 @@ def run_compare_engines():
     console.print("[dim]you loaded it with 'Max Concurrent Predictions' = 32. Bodega is auto-loaded with CB.[/dim]")
     console.print("")
 
-    default_model = "srswti/bodega-raptor-90m"
+    default_model = "srswti/bodega-orion-0.6b"
     model = Prompt.ask("Model path (HuggingFace repo or local)", default=default_model)
     if not model:
         model = default_model

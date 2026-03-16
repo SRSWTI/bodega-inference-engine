@@ -24,7 +24,7 @@ Two modes:
 
 Usage:
     # Quick start — loads, benchmarks, unloads
-    python benchmark_llm.py --model srswti/bodega-raptor-90m
+    python benchmark_llm.py --model srswti/bodega-orion-0.6b
 
     # More prompts and tokens
     python benchmark_llm.py --model srswti/bodega-raptor-0.9b --prompts 10 --max-tokens 256

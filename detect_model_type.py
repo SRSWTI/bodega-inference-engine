@@ -8,10 +8,10 @@ from local paths or HuggingFace Hub.
 
 Usage:
     from detect_model_type import detect_model_type
-    mtype = detect_model_type("srswti/bodega-raptor-90m")  # -> "lm"
+    mtype = detect_model_type("srswti/bodega-orion-0.6b")  # -> "lm"
 
     # Or as CLI:
-    python detect_model_type.py srswti/bodega-raptor-90m
+    python detect_model_type.py srswti/bodega-orion-0.6b
 """
 
 from __future__ import annotations

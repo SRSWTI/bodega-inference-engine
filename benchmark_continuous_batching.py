@@ -353,7 +353,7 @@ async def main():
     parser.add_argument("--compare", action="store_true", help="Compare with sequential mode")
     args = parser.parse_args()
 
-    models = args.models or ["srswti/bodega-raptor-90m"]
+    models = args.models or ["srswti/bodega-orion-0.6b"]
     print("=" * 62 + "\n  bodega_mlx_engine — Continuous Batching Benchmark\n" + "=" * 62)
     print(f"  Base URL:    {args.base_url}\n  Models:      {models}\n  Concurrency: {args.concurrency}\n  Max tokens:  {args.max_tokens}\n")
 

@@ -418,8 +418,8 @@ async def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default="srswti/bodega-raptor-90m",
-        help="Model ID (default: srswti/bodega-raptor-90m)",
+        default="srswti/bodega-orion-0.6b",
+        help="Model ID (default: srswti/bodega-orion-0.6b)",
     )
     parser.add_argument(
         "--concurrencies",

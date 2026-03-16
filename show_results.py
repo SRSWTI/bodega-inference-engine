@@ -501,6 +501,23 @@ def build_html(sweep: dict | None, compare: dict | None) -> str:
 # CLI
 # ---------------------------------------------------------------------------
 
+def upload_to_leaderboard(json_path: str, url: str) -> None:
+    """POST a saved benchmark JSON to the leaderboard server."""
+    import httpx
+    target = url.rstrip("/") + "/api/upload"
+    try:
+        with open(json_path) as fh:
+            payload = json.load(fh)
+        r = httpx.post(target, json=payload, timeout=15.0)
+        if r.status_code == 200:
+            row_id = r.json().get("id", "?")
+            print(f"  ✓ Uploaded to leaderboard (id={row_id}) → {url.rstrip('/')}")
+        else:
+            print(f"  ⚠ Leaderboard upload failed: {r.status_code} {r.text[:120]}")
+    except Exception as exc:
+        print(f"  ⚠ Leaderboard upload error: {exc}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Open benchmark results in the browser")
     p.add_argument("sweep",   nargs="?", default="", help="Path to sweep JSON")
@@ -509,6 +526,8 @@ def main() -> None:
                    help="Directory to auto-find latest JSONs (default: results)")
     p.add_argument("--out", default="",
                    help="Save HTML to this file instead of a temp file")
+    p.add_argument("--upload", default="",
+                   help="Upload the result JSON(s) to this leaderboard URL")
     args = p.parse_args()
 
     sweep_path   = args.sweep
@@ -546,6 +565,12 @@ def main() -> None:
     print(f"\n  Report saved → {abs_path}")
     print("  Opening in browser...")
     webbrowser.open(f"file://{abs_path}")
+
+    if args.upload:
+        if sweep_path:
+            upload_to_leaderboard(sweep_path, args.upload)
+        if compare_path:
+            upload_to_leaderboard(compare_path, args.upload)
 
 
 if __name__ == "__main__":

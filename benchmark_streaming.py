@@ -102,7 +102,7 @@ async def run_streaming_benchmark(client: httpx.AsyncClient, base_url: str, mode
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:44468", help="Server base URL")
-    parser.add_argument("--model-path", default="srswti/bodega-raptor-90m", help="Model path")
+    parser.add_argument("--model-path", default="srswti/bodega-orion-0.6b", help="Model path")
     parser.add_argument("--max-tokens", type=int, default=256, help="Max tokens")
     args = parser.parse_args()
 

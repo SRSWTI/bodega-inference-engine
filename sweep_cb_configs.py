@@ -184,6 +184,7 @@ async def run_sweep(base_url: str, model: str, output: str = ""):
     print(f"\n  Sweep results saved → {output}")
 
     _open_html_report(sweep_path=output)
+    return output
 
 
 async def run_sequential_multimodal(base_url: str, model: str):
@@ -269,14 +270,22 @@ async def run_sequential_multimodal(base_url: str, model: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:44468", help="Server base URL")
-    parser.add_argument("--model", default="srswti/bodega-raptor-90m", help="Model to use for sweep")
+    parser.add_argument("--model", default="srswti/bodega-orion-0.6b", help="Model to use for sweep")
     parser.add_argument("--multimodal-sequential", action="store_true",
                         help="Run 3 sequential requests for multimodal models instead of CB sweep")
     parser.add_argument("--output", default="", help="Save sweep results as JSON to this path")
+    parser.add_argument("--leaderboard-url", default="",
+                        help="Upload results to this leaderboard server after saving")
     args = parser.parse_args()
     print("  [Telemetry] Opening mactop in a new Terminal window...")
     open_mactop_window()
     if args.multimodal_sequential:
         asyncio.run(run_sequential_multimodal(args.base_url, args.model))
     else:
-        asyncio.run(run_sweep(args.base_url, args.model, output=args.output))
+        saved = asyncio.run(run_sweep(args.base_url, args.model, output=args.output))
+        if args.leaderboard_url and saved:
+            import sys
+            if _HERE not in sys.path:
+                sys.path.insert(0, _HERE)
+            import show_results as _sr
+            _sr.upload_to_leaderboard(saved, args.leaderboard_url)

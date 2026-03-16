@@ -32,10 +32,10 @@ Prerequisites:
 
 Usage:
     # Full comparison — loads model in Bodega, model already loaded in LM Studio
-    python compare_engines.py --model srswti/bodega-raptor-90m
+    python compare_engines.py --model srswti/bodega-orion-0.6b
 
     # Custom concurrency sweep
-    python compare_engines.py --model srswti/bodega-raptor-90m \\
+    python compare_engines.py --model srswti/bodega-orion-0.6b \\
         --concurrencies 4,8,16,32 --max-tokens 256 --prompts 10
 
     # Use a different model-id in LM Studio (if it differs from the HF name)
@@ -43,16 +43,16 @@ Usage:
         --lmstudio-model-id bodega-raptor-0.9b
 
     # Save JSON report
-    python compare_engines.py --model srswti/bodega-raptor-90m --output report.json
+    python compare_engines.py --model srswti/bodega-orion-0.6b --output report.json
 
     # Skip Bodega (only benchmark LM Studio for reference)
-    python compare_engines.py --model srswti/bodega-raptor-90m --no-bodega
+    python compare_engines.py --model srswti/bodega-orion-0.6b --no-bodega
 
     # Skip LM Studio
-    python compare_engines.py --model srswti/bodega-raptor-90m --no-lmstudio
+    python compare_engines.py --model srswti/bodega-orion-0.6b --no-lmstudio
 
     # Disable auto-optimal CB config, use fixed prefill-batch
-    python compare_engines.py --model srswti/bodega-raptor-90m \\
+    python compare_engines.py --model srswti/bodega-orion-0.6b \\
         --no-optimal --cb-prefill-batch-size 4
 
 Defaults:
@@ -582,11 +582,23 @@ def save_report(
     lm_peak  = max((s.system_throughput_tps for s in lm_runs.values()  if s), default=0)
     bod_peak = max((s.system_throughput_tps for s in bod_runs.values() if s), default=0)
 
+    # Build full hardware dict (gpu_cores etc.) for leaderboard
+    try:
+        from hardware_info import get_hardware_info
+        _hw_full = get_hardware_info()
+        if not chip:
+            chip = _hw_full.get("chip") or _hw_full.get("processor") or chip
+        if not mem_gb:
+            mem_gb = float(_hw_full.get("memory_gb") or 0)
+    except Exception:
+        _hw_full = {}
+    hw_dict = {**_hw_full, "chip": chip, "memory_gb": mem_gb}
+
     payload: dict[str, Any] = {
         "type": "engine_comparison",
         "generated_at": datetime.now().isoformat(),
         "model": model,
-        "hardware": {"chip": chip, "memory_gb": mem_gb},
+        "hardware": hw_dict,
         "concurrencies": concurrencies,
         "bodega_optimal_configs": {str(c): pb for c, pb in bodega_configs.items()},
         "peak_throughput": {
@@ -620,8 +632,8 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--model", default="srswti/bodega-raptor-90m",
-                   help="HuggingFace model path (used to load in Bodega; default: srswti/bodega-raptor-90m)")
+    p.add_argument("--model", default="srswti/bodega-orion-0.6b",
+                   help="HuggingFace model path (used to load in Bodega; default: srswti/bodega-orion-0.6b)")
     p.add_argument("--lmstudio-model-id", default="",
                    help="Model ID as shown in LM Studio (auto-detected if omitted)")
     p.add_argument("--lmstudio-url", default=DEFAULT_LMSTUDIO_URL,
@@ -661,6 +673,8 @@ def parse_args() -> argparse.Namespace:
 
     p.add_argument("--output", default="",
                    help="Save JSON comparison report to this file")
+    p.add_argument("--leaderboard-url", default="",
+                   help="Upload results to this leaderboard server after saving")
     return p.parse_args()
 
 
@@ -675,6 +689,24 @@ async def _main() -> None:
     num_prompts   = max(1, min(args.prompts, len(PROMPTS)))
     prompts       = PROMPTS[:num_prompts]
     chip, mem_gb  = _detect_hardware_from_mactop()
+    # Fall back to hardware_info (system_profiler) if mactop returned empty chip
+    if not chip:
+        try:
+            from hardware_info import get_hardware_info as _get_hw
+            _hw = _get_hw()
+            chip   = _hw.get("chip") or _hw.get("processor") or chip
+            mem_gb = mem_gb or float(_hw.get("memory_gb") or 0)
+        except Exception:
+            pass
+    # Fall back to hardware_info (system_profiler) if mactop returned empty chip
+    if not chip:
+        try:
+            from hardware_info import get_hardware_info
+            _hw = get_hardware_info()
+            chip   = _hw.get("chip") or _hw.get("processor") or chip
+            mem_gb = mem_gb or float(_hw.get("memory_gb") or 0)
+        except Exception:
+            pass
 
     # ── Determine prefill-batch per concurrency ────────────────────────────
     # If user passed an explicit --cb-prefill-batch-size OR --no-optimal,
@@ -847,6 +879,10 @@ async def _main() -> None:
         mem_gb=mem_gb,
         path=output_path,
     )
+
+    if args.leaderboard_url:
+        import show_results as _sr
+        _sr.upload_to_leaderboard(output_path, args.leaderboard_url)
 
 
 if __name__ == "__main__":
