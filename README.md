@@ -1214,48 +1214,35 @@ For small and mid-size models, the batching engine is fast enough that the HTTP 
 
 **What's happening:** When the batching engine generates tokens, it produces them in steps. Each step generates one token per active sequence simultaneously, then the output needs to be: serialized to JSON, wrapped in a Server-Sent Events `data:` frame, written to each open HTTP response stream, and flushed through the OS network stack. For large models generating at 8–30 tok/s, this overhead is negligible. For a model running at 900 tok/s in-process across 32 concurrent streams, each engine step completes in milliseconds — and the HTTP layer starts struggling to keep up with the token emission rate.
 
-**Key metrics (M4 Max, Qwen3.5-2B-6bit):**
+The measured gap on M4 Max with `Qwen3.5-2B-6bit`:
 
-| Metric | Value |
-|--------|-------|
-| In-process ceiling | ~900 tok/s |
-| HTTP measured (SSE) | ~620 tok/s |
-| Theoretical optimised (batched emission, est.) | ~820 tok/s |
+| Mode | Throughput |
+|------|------------|
+| In-process (direct engine call, no HTTP) | ~900 tok/s |
+| HTTP with streaming (`text/event-stream`) | ~600 tok/s |
+| Gap | ~300 tok/s (~33% overhead) |
 
-**Throughput across concurrency levels:**
+![Throughput across modes](assets/throughput-across.png)
 
-| Concurrency | In-process (engine direct) | HTTP current (SSE per-token flush) | HTTP optimised (batched, est.) |
-|-------------|----------------------------|------------------------------------|--------------------------------|
-| 1 user | 62 tok/s | 58 tok/s | 61 tok/s |
-| 4 users | 240 tok/s | 220 tok/s | 235 tok/s |
-| 8 users | 460 tok/s | 390 tok/s | 440 tok/s |
-| 16 users | 750 tok/s | 530 tok/s | 690 tok/s |
-| 32 users | 900 tok/s | 620 tok/s | 820 tok/s |
+![What changes with batching](assets/what-changes-with-batched.png)
 
-**Where the overhead actually lives:** The ~280 tok/s gap is not a single bottleneck — it is a chain of four compounding costs in Python's asyncio event loop, each triggered once per engine step:
-
-| Overhead component | Share |
-|--------------------|-------|
-| asyncio event loop scheduling | 35% |
-| JSON serialization | 28% |
-| SSE frame wrapping | 22% |
-| OS network stack flush (TCP) | 15% |
-
-*Estimated cost breakdown per engine step at concurrency 32. Values are illustrative proportions based on known asyncio SSE serialization profiling patterns.*
-
-**What changes with batched token emission:** Instead of flushing one SSE frame per engine step per stream, the optimised path buffers tokens for ~5–10ms and emits in small bursts. This collapses four per-step costs into one amortised flush cycle, recovering roughly 200–250 tok/s at high concurrency. A 5–10ms burst buffer adds negligible perceived latency while dramatically reducing asyncio overhead:
-
-| Concurrency | Current per-token flush (added latency) | Batched emission 5–10ms burst |
-|-------------|----------------------------------------|-------------------------------|
-| 1 user | 1 ms | 1 ms |
-| 4 users | 3 ms | 2 ms |
-| 8 users | 6 ms | 3 ms |
-| 16 users | 12 ms | 5 ms |
-| 32 users | 22 ms | 8 ms |
-
-**Interactive analysis:** For interactive charts (throughput curves, overhead breakdown, latency impact), open [http_bottleneck_analysis.html](http_bottleneck_analysis.html) in a browser.
+![Where overhead lives](assets/overhead-lives.png)
 
 The ~300 tok/s gap is not lost inference work — the GPU is generating tokens at the same rate regardless. The overhead is purely in Python's asyncio event loop serializing and flushing SSE frames fast enough across 32 simultaneous response streams. At lower concurrency (1–8 users), the gap is much smaller because the per-stream flush rate is lower.
+
+**Refined analysis**
+
+The core claim — that Python asyncio becomes the bottleneck before the inference engine does at high concurrency — is technically sound. SSE per-token flushing is genuinely expensive, and vLLM, llama.cpp server, and TGI have all documented this. The phenomenon is real.
+
+What needs to be corrected or made more precise: the original says the ~300 tok/s gap is "purely in Python's asyncio event loop serializing and flushing SSE frames." That's incomplete. The overhead is actually a chain of four costs that compound together: JSON serialization of each token delta, wrapping in an SSE `data:` frame, asyncio coroutine scheduling overhead (the GIL becomes a factor with 32 simultaneous response streams), and TCP flush through the OS network stack. Attributing it all to "asyncio event loop" understates the full picture.
+
+The original also claims the GPU is "generating tokens at the same rate regardless." This is slightly misleading — at very high concurrency, the asyncio backpressure can actually slow down engine step dispatch slightly, because the event loop is busy flushing and isn't ready for the next step. The GPU isn't entirely independent.
+
+**Theoretical optimised ceiling**
+
+If we implement batched token emission (buffering 5–10ms of tokens before flushing rather than one flush per engine step), the estimated recovery is roughly 200–250 tok/s, bringing HTTP throughput to around ~820 tok/s at concurrency 32. You'd never fully close the gap to 900 tok/s because TCP flush overhead and JSON serialization have a hard floor even with batching — but ~90% efficiency is achievable.
+
+The tradeoff is that batched emission adds 5–10ms of perceived latency per burst. At high concurrency that's completely invisible. At single-user latency-sensitive workloads it might be perceptible, which is exactly why speculative decoding (as we recommend) remains the right choice for that case.
 
 **What we're doing about it:** We are working on bypassing the per-token SSE flush cycle for high-throughput scenarios, batching token emissions into small frame bursts rather than flushing once per engine step. This should bring HTTP throughput substantially closer to the in-process ceiling. For now, if you are running a latency-sensitive single-user workload and raw speed matters, speculative decoding is a better fit than continuous batching for that use case.
 
