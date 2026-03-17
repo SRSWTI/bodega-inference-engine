@@ -139,22 +139,17 @@ fi
 
 echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
-echo "Which model(s) would you like to download?"
+echo "Which model would you like to download?"
 echo "1) Bodega ORION 0.6B (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
-echo "2) Bodega Raptor 8B (srswti/bodega-raptor-8b-mxfp4) - Powerful and small parameter model"
-echo "3) Both Models"
-echo "4) Custom Model Repository from HuggingFace"
-echo "5) Skip Model Download"
-read -p "Select an option [1-5]: " model_choice
+echo "2) Custom Model Repository from HuggingFace"
+echo "3) Skip Model Download"
+read -p "Select an option [1-3]: " model_choice
 
 MODELS=()
-if [[ "$model_choice" == "1" || "$model_choice" == "3" ]]; then
+if [[ "$model_choice" == "1" ]]; then
     MODELS+=("srswti/bodega-orion-0.6b")
 fi
-if [[ "$model_choice" == "2" || "$model_choice" == "3" ]]; then
-    MODELS+=("srswti/bodega-raptor-8b-mxfp4")
-fi
-if [[ "$model_choice" == "4" ]]; then
+if [[ "$model_choice" == "2" ]]; then
     read -p "Enter HuggingFace model path (e.g. mlx-community/JOSIE-IT1-Qwen3-0.6B-4bit): " custom_model
     if [ -n "$custom_model" ]; then
         MODELS+=("$custom_model")
@@ -167,7 +162,7 @@ else
     TARGET_MODEL=${MODELS[0]}
 fi
 
-if [[ "$model_choice" == "5" ]]; then
+if [[ "$model_choice" == "3" ]]; then
     echo -e "\n${GREEN}Setup complete!${NC}"
     echo ""
     echo "Would you like to run a benchmark now?"
@@ -181,10 +176,24 @@ if [[ "$model_choice" == "5" ]]; then
     SKIP_LAST_JSON=""
 
     if [[ "$run_bench" == "1" ]]; then
+        echo ""
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
+        echo -e "  Please close other apps and IDEs so the benchmark can have"
+        echo -e "  true headroom and full SoC cores utilized for accurate results."
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        read -p "  Press Enter when ready to start..."
         echo -e "\n${BLUE}Running CB Configuration Sweep — results will open in browser when done...${NC}"
         python sweep_cb_configs.py --model "$TARGET_MODEL" --output "results/sweep_${TIMESTAMP}.json"
         SKIP_LAST_JSON="results/sweep_${TIMESTAMP}.json"
     elif [[ "$run_bench" == "2" ]]; then
+        echo ""
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
+        echo -e "  Please close other apps and IDEs so the benchmark can have"
+        echo -e "  true headroom and full SoC cores utilized for accurate results."
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        read -p "  Press Enter when ready to start..."
         echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
         LMSTUDIO_ID="${TARGET_MODEL##*/}"
         python compare_engines.py --model "$TARGET_MODEL" \
@@ -376,6 +385,13 @@ mkdir -p results
 
 LAST_JSON=""
 if [[ "$run_bench" == "1" ]]; then
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
+    echo -e "  Please close other apps and IDEs so the benchmark can have"
+    echo -e "  true headroom and full SoC cores utilized for accurate results."
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -p "  Press Enter when ready to start..."
     echo -e "\n${BLUE}Running CB Sweep — results will open in browser when done...${NC}"
     if [[ "$IS_MULTIMODAL" == "1" ]]; then
         python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential \
@@ -386,6 +402,13 @@ if [[ "$run_bench" == "1" ]]; then
     fi
     LAST_JSON="results/sweep_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "2" ]]; then
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
+    echo -e "  Please close other apps and IDEs so the benchmark can have"
+    echo -e "  true headroom and full SoC cores utilized for accurate results."
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -p "  Press Enter when ready to start..."
     echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
     LMSTUDIO_ID="${TARGET_MODEL##*/}"
     python compare_engines.py --model "$TARGET_MODEL" \

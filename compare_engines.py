@@ -801,29 +801,6 @@ async def _main() -> None:
         print(f"  Running  concurrency = {c}  │  Bodega CB prefill-batch = {pb}")
         print(f"{'─'*W_FULL}")
 
-        if not args.no_lmstudio:
-            print(f"\n  [LM Studio]  concurrency={c}")
-            lm_s = await run_benchmark(
-                base_url=args.lmstudio_url,
-                model_path="",
-                model_id=lmstudio_model_id,
-                concurrency=c,
-                continuous_batching=True,
-                manage_model_lifecycle=False,
-                prompts=prompts,
-                max_tokens=args.max_tokens,
-                temperature=args.temperature,
-                warmup_runs=args.warmup,
-                cb_max_num_seqs=args.cb_max_num_seqs,
-                cb_prefill_batch_size=pb,
-                cb_completion_batch_size=args.cb_completion_batch_size,
-                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
-                context_length=args.context_length,
-            )
-            lm_runs[c] = lm_s
-        else:
-            lm_runs[c] = None
-
         if not args.no_bodega:
             print(f"\n  [Bodega CB]  concurrency={c}  prefill-batch={pb}")
             bod_s = await run_benchmark(
@@ -846,6 +823,29 @@ async def _main() -> None:
             bod_runs[c] = bod_s
         else:
             bod_runs[c] = None
+
+        if not args.no_lmstudio:
+            print(f"\n  [LM Studio]  concurrency={c}")
+            lm_s = await run_benchmark(
+                base_url=args.lmstudio_url,
+                model_path="",
+                model_id=lmstudio_model_id,
+                concurrency=c,
+                continuous_batching=True,
+                manage_model_lifecycle=False,
+                prompts=prompts,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                warmup_runs=args.warmup,
+                cb_max_num_seqs=args.cb_max_num_seqs,
+                cb_prefill_batch_size=pb,
+                cb_completion_batch_size=args.cb_completion_batch_size,
+                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
+                context_length=args.context_length,
+            )
+            lm_runs[c] = lm_s
+        else:
+            lm_runs[c] = None
 
     # ── Comparison report ──────────────────────────────────────────────────
     print("\n\n" + "=" * W_FULL)
