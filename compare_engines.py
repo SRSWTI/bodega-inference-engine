@@ -126,8 +126,8 @@ OPTIMAL_CB_PREFILL_BATCH: dict[int, int] = {
     1:  4,
     4:  4,
     8:  4,
-    16: 4,
-    32: 4,
+    16: 8,
+    32: 8,
 }
 
 
@@ -796,88 +796,83 @@ async def _main() -> None:
     lm_runs:  dict[int, BenchmarkSummary | None] = {}
     bod_runs: dict[int, BenchmarkSummary | None] = {}
 
-    # ── Load Bodega model once for the entire sweep ────────────────────────
-    # The engine has a bug where a cold-loaded model + ≥16 simultaneous
-    # requests produces empty completions. Keeping the model warm across all
-    # concurrency levels (C=1→4→8→16→32) mirrors LM Studio's behaviour and
-    # reflects real-world usage: by the time C=16 runs the model has already
-    # processed C=1/4/8 traffic and is fully warmed up.
-    pb_for_load = bodega_configs[concurrencies[0]]  # all levels use pb=4
-    async with httpx.AsyncClient() as _bod_client:
-        if not args.no_bodega:
-            print(f"\n  Loading Bodega model (prefill-batch={pb_for_load})…")
-            await unload_model(_bod_client, args.bodega_url, bodega_model_id)
-            ok = await load_model(
-                _bod_client,
-                args.bodega_url,
-                args.model,
-                bodega_model_id,
-                True,
-                args.cb_max_num_seqs,
-                pb_for_load,
-                args.cb_completion_batch_size,
-                args.cb_chunked_prefill_tokens,
-                args.context_length,
-            )
-            if not ok:
-                print("  ✗  Could not load Bodega model — skipping all Bodega runs.")
-                args.no_bodega = True
-
     # ── Run benchmarks ─────────────────────────────────────────────────────
-    for c in concurrencies:
-        pb = bodega_configs[c]
-        print(f"\n{'─'*W_FULL}")
-        print(f"  Running  concurrency = {c}  │  Bodega CB prefill-batch = {pb}")
-        print(f"{'─'*W_FULL}")
-
-        if not args.no_bodega:
-            print(f"\n  [Bodega CB]  concurrency={c}  prefill-batch={pb}")
-            bod_s = await run_benchmark(
-                base_url=args.bodega_url,
-                model_path=args.model,
-                model_id=bodega_model_id,
-                concurrency=c,
-                continuous_batching=True,
-                manage_model_lifecycle=False,
-                prompts=prompts,
-                max_tokens=args.max_tokens,
-                temperature=args.temperature,
-                warmup_runs=args.warmup,
-                cb_max_num_seqs=args.cb_max_num_seqs,
-                cb_prefill_batch_size=pb,
-                cb_completion_batch_size=args.cb_completion_batch_size,
-                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
-                context_length=args.context_length,
-            )
-            bod_runs[c] = bod_s
-        else:
-            bod_runs[c] = None
-
-        if not args.no_lmstudio:
-            print(f"\n  [LM Studio]  concurrency={c}")
-            lm_s = await run_benchmark(
-                base_url=args.lmstudio_url,
-                model_path="",
-                model_id=lmstudio_model_id,
-                concurrency=c,
-                continuous_batching=True,
-                manage_model_lifecycle=False,
-                prompts=prompts,
-                max_tokens=args.max_tokens,
-                temperature=args.temperature,
-                warmup_runs=args.warmup,
-                cb_max_num_seqs=args.cb_max_num_seqs,
-                cb_prefill_batch_size=pb,
-                cb_completion_batch_size=args.cb_completion_batch_size,
-                cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
-                context_length=args.context_length,
-            )
-            lm_runs[c] = lm_s
-        else:
-            lm_runs[c] = None
-
-    # ── Unload Bodega model after full sweep ───────────────────────────────
+    # Bodega is explicitly unloaded + reloaded for each concurrency level so
+    # the correct prefill-batch size is applied (pb=4 for C≤8, pb=8 for C≥16).
+    # Prefix cache is disabled in load_model (cb_enable_prefix_cache=False) —
+    # that was the root cause of the empty-completion bug at high concurrency.
     async with httpx.AsyncClient() as _bod_client:
+        for c in concurrencies:
+            pb = bodega_configs[c]
+            print(f"\n{'─'*W_FULL}")
+            print(f"  Running  concurrency = {c}  │  Bodega CB prefill-batch = {pb}")
+            print(f"{'─'*W_FULL}")
+
+            if not args.no_bodega:
+                print(f"\n  [Bodega CB]  concurrency={c}  prefill-batch={pb}")
+                print(f"  ↺  Reloading Bodega model (prefill-batch={pb})…")
+                await unload_model(_bod_client, args.bodega_url, bodega_model_id)
+                ok = await load_model(
+                    _bod_client,
+                    args.bodega_url,
+                    args.model,
+                    bodega_model_id,
+                    True,
+                    args.cb_max_num_seqs,
+                    pb,
+                    args.cb_completion_batch_size,
+                    args.cb_chunked_prefill_tokens,
+                    args.context_length,
+                )
+                if not ok:
+                    print(f"  ✗  Could not load Bodega model for C={c} — skipping.")
+                    bod_runs[c] = None
+                else:
+                    bod_s = await run_benchmark(
+                        base_url=args.bodega_url,
+                        model_path=args.model,
+                        model_id=bodega_model_id,
+                        concurrency=c,
+                        continuous_batching=True,
+                        manage_model_lifecycle=False,
+                        prompts=prompts,
+                        max_tokens=args.max_tokens,
+                        temperature=args.temperature,
+                        warmup_runs=args.warmup,
+                        cb_max_num_seqs=args.cb_max_num_seqs,
+                        cb_prefill_batch_size=pb,
+                        cb_completion_batch_size=args.cb_completion_batch_size,
+                        cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
+                        context_length=args.context_length,
+                    )
+                    bod_runs[c] = bod_s
+            else:
+                bod_runs[c] = None
+
+            if not args.no_lmstudio:
+                print(f"\n  [LM Studio]  concurrency={c}")
+                lm_s = await run_benchmark(
+                    base_url=args.lmstudio_url,
+                    model_path="",
+                    model_id=lmstudio_model_id,
+                    concurrency=c,
+                    continuous_batching=True,
+                    manage_model_lifecycle=False,
+                    prompts=prompts,
+                    max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                    warmup_runs=args.warmup,
+                    cb_max_num_seqs=args.cb_max_num_seqs,
+                    cb_prefill_batch_size=pb,
+                    cb_completion_batch_size=args.cb_completion_batch_size,
+                    cb_chunked_prefill_tokens=args.cb_chunked_prefill_tokens,
+                    context_length=args.context_length,
+                )
+                lm_runs[c] = lm_s
+            else:
+                lm_runs[c] = None
+
+        # Final cleanup: unload Bodega after full sweep
         if not args.no_bodega:
             print(f"\n  ↺  Unloading Bodega model after sweep…")
             await unload_model(_bod_client, args.bodega_url, bodega_model_id)
