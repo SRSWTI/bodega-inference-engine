@@ -512,7 +512,7 @@ async def load_model(
             cb_prefill_batch_size=cb_prefill_batch_size,
             cb_completion_batch_size=cb_completion_batch_size,
             cb_chunked_prefill_tokens=cb_chunked_prefill_tokens,
-            cb_enable_prefix_cache=True,
+            cb_enable_prefix_cache=False,
         )
 
     resp = await client.post(url, json=payload, timeout=180.0)
