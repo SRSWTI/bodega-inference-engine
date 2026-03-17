@@ -123,9 +123,9 @@ DEFAULT_CONCURRENCIES = "1,4,8,16,32"
 OPTIMAL_CB_PREFILL_BATCH: dict[int, int] = {
     1:  4,
     4:  4,
-    8:  4,   # best latency at low-mid concurrency
-    16: 8,   # throughput sweet-spot
-    32: 8,   # max throughput
+    8:  4,
+    16: 4,
+    32: 4,
 }
 
 
