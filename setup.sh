@@ -26,13 +26,7 @@ if [[ "$has_sensors" == "y" || "$has_sensors" == "Y" ]]; then
     echo -e "  2. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON."
     echo -e "  3. Wait for the toggle to turn ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    while true; do
-        read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
-        if [[ "$toggle_done" == "y" || "$toggle_done" == "Y" ]]; then
-            break
-        fi
-        echo -e "  ${YELLOW}Please turn the Bodega Inference Engine toggle ON and wait for it to turn GREEN.${NC}"
-    done
+    read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
 else
     echo -e "  Downloading Bodega Sensors (contains the Inference Engine)..."
     echo ""
@@ -48,37 +42,19 @@ else
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${GREEN}Step 1:${NC} Open the DMG from ${BLUE}~/Downloads${NC} and drag ${GREEN}Bodega Sensors${NC} into Applications."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    while true; do
-        read -p "  Have you copied Bodega Sensors to Applications? [y/N]: " copy_done
-        if [[ "$copy_done" == "y" || "$copy_done" == "Y" ]]; then
-            break
-        fi
-        echo -e "  ${YELLOW}Please complete the drag-and-drop, then answer yes.${NC}"
-    done
+    read -p "  Have you copied Bodega Sensors to Applications? [y/N]: " copy_done
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${GREEN}Step 2:${NC} Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    while true; do
-        read -p "  Is the Bodega Sensors app open now? [y/N]: " app_open
-        if [[ "$app_open" == "y" || "$app_open" == "Y" ]]; then
-            break
-        fi
-        echo -e "  ${YELLOW}Please open Bodega Sensors from Applications, then answer yes.${NC}"
-    done
+    read -p "  Is the Bodega Sensors app open now? [y/N]: " app_open
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${GREEN}Step 3:${NC} Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON. Wait for ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    while true; do
-        read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
-        if [[ "$toggle_done" == "y" || "$toggle_done" == "Y" ]]; then
-            break
-        fi
-        echo -e "  ${YELLOW}Please turn the toggle ON and wait for it to turn GREEN.${NC}"
-    done
+    read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
 fi
 
 echo ""
