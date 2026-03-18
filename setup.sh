@@ -2,14 +2,14 @@
 # Bodega Inference Engine Setup Script
 
 GREEN='\033[0;32m'
-BLUE='\033[0;34m'
+WHITE='\033[1;37m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}=== Bodega Inference Engine Setup ===${NC}"
+echo -e "${GREEN}=== Bodega Inference Engine Setup ===${NC}"
 echo ""
-echo -e "${YELLOW}Step 1: Bodega Sensors & Inference Engine${NC}"
+echo -e "${WHITE}Step 1: Bodega Sensors & Inference Engine${NC}"
 echo ""
 echo -e "  The ${GREEN}Bodega Inference Engine${NC} runs inside the ${GREEN}Bodega Sensors${NC} app."
 echo ""
@@ -19,12 +19,12 @@ echo ""
 if [[ "$has_sensors" == "y" || "$has_sensors" == "Y" ]]; then
     echo -e "${GREEN}✓ Skipping download — you already have Bodega Sensors.${NC}"
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${GREEN}ACTION REQUIRED:${NC}"
     echo -e "  1. Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
-    echo -e "  2. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON."
+    echo -e "  2. Find the ${GREEN}Bodega Inference Engine${NC} toggle and turn it ON."
     echo -e "  3. Wait for the toggle to turn ${GREEN}GREEN${NC}."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
 else
     echo -e "  Downloading Bodega Sensors (contains the Inference Engine)..."
@@ -33,32 +33,32 @@ else
     if [ -f "./install_sensors.sh" ]; then
         bash ./install_sensors.sh
     else
-        echo -e "${RED}Error: install_sensors.sh not found in the current directory.${NC}"
+        echo -e "${WHITE}Error: install_sensors.sh not found in the current directory.${NC}"
         exit 1
     fi
 
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "  ${GREEN}Step 1:${NC} Open the DMG from ${BLUE}~/Downloads${NC} and drag ${GREEN}Bodega Sensors${NC} into Applications."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "  ${GREEN}Step 1:${NC} Open the DMG from ${WHITE}~/Downloads${NC} and drag ${GREEN}Bodega Sensors${NC} into Applications."
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Have you copied Bodega Sensors to Applications? [y/N]: " copy_done
 
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${GREEN}Step 2:${NC} Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Is the Bodega Sensors app open now? [y/N]: " app_open
 
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "  ${GREEN}Step 3:${NC} Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON. Wait for ${GREEN}GREEN${NC}."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "  ${GREEN}Step 3:${NC} Find the ${GREEN}Bodega Inference Engine${NC} toggle and turn it ON. Wait for ${GREEN}GREEN${NC}."
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1.b: Apple Silicon Telemetry (mactop)${NC}"
-echo -e "  ${BLUE}mactop${NC} is a real-time monitor for Apple Silicon — it shows GPU/CPU/RAM usage"
+echo -e "${WHITE}Step 1.b: Apple Silicon Telemetry (mactop)${NC}"
+echo -e "  ${WHITE}mactop${NC} is a real-time monitor for Apple Silicon — it shows GPU/CPU/RAM usage"
 echo -e "  and power draw while benchmarks run, so you can see your chip working live."
 
 SKIP_TELEMETRY=0
@@ -69,32 +69,32 @@ else
     echo ""
     read -p "  Would you like to install mactop for live telemetry? [Y/n]: " install_mactop
     if [[ "$install_mactop" == "n" || "$install_mactop" == "N" ]]; then
-        echo -e "  ${YELLOW}Skipping telemetry. Benchmarks will still run, just without live chip stats.${NC}"
+        echo -e "  ${WHITE}Skipping telemetry. Benchmarks will still run, just without live chip stats.${NC}"
         SKIP_TELEMETRY=1
     else
         if command -v brew &> /dev/null; then
             # Homebrew already there — just install mactop silently
-            echo -e "  ${BLUE}Installing mactop via Homebrew...${NC}"
+            echo -e "  ${WHITE}Installing mactop via Homebrew...${NC}"
             brew install mactop
             echo -e "  ${GREEN}✓ mactop installed.${NC}"
         else
             echo ""
-            echo -e "  ${YELLOW}Homebrew is a package manager for macOS — needed to install mactop.${NC}"
+            echo -e "  ${WHITE}Homebrew is a package manager for macOS — needed to install mactop.${NC}"
             echo -e "  It's safe, widely used, and takes ~1-2 minutes to install."
             read -p "  Install Homebrew now? [Y/n]: " install_brew
             if [[ "$install_brew" == "n" || "$install_brew" == "N" ]]; then
-                echo -e "  ${YELLOW}Skipping Homebrew & mactop. Telemetry will be unavailable.${NC}"
+                echo -e "  ${WHITE}Skipping Homebrew & mactop. Telemetry will be unavailable.${NC}"
                 SKIP_TELEMETRY=1
             else
-                echo -e "  ${BLUE}Installing Homebrew...${NC}"
+                echo -e "  ${WHITE}Installing Homebrew...${NC}"
                 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
                 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)" || eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"
                 if command -v brew &> /dev/null; then
-                    echo -e "  ${BLUE}Installing mactop...${NC}"
+                    echo -e "  ${WHITE}Installing mactop...${NC}"
                     brew install mactop
                     echo -e "  ${GREEN}✓ mactop installed.${NC}"
                 else
-                    echo -e "  ${RED}Homebrew installation failed. Skipping mactop.${NC}"
+                    echo -e "  ${WHITE}Homebrew installation failed. Skipping mactop.${NC}"
                     SKIP_TELEMETRY=1
                 fi
             fi
@@ -103,8 +103,8 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1.c: Python Dependencies${NC}"
-echo -e "  ${BLUE}Ensuring Python packages (httpx, huggingface_hub, rich, etc.) are installed...${NC}"
+echo -e "${WHITE}Step 1.c: Python Dependencies${NC}"
+echo -e "  ${WHITE}Ensuring Python packages (httpx, huggingface_hub, rich, etc.) are installed...${NC}"
 BODEGA_TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$BODEGA_TESTS_DIR"
 if [ -f "requirements.txt" ]; then
@@ -112,7 +112,7 @@ if [ -f "requirements.txt" ]; then
         echo -e "  ${GREEN}✓ Using existing .venv${NC}"
         source .venv/bin/activate
     else
-        echo -e "  ${BLUE}Creating .venv and installing packages...${NC}"
+        echo -e "  ${WHITE}Creating .venv and installing packages...${NC}"
         python3 -m venv .venv
         source .venv/bin/activate
         pip install -q --upgrade pip
@@ -123,31 +123,31 @@ if [ -f "requirements.txt" ]; then
     export VIRTUAL_ENV="$BODEGA_TESTS_DIR/.venv"
     export PATH="$VIRTUAL_ENV/bin:$PATH"
 else
-    echo -e "  ${YELLOW}requirements.txt not found — skipping venv setup.${NC}"
-    echo -e "  ${YELLOW}Install manually: pip install httpx huggingface_hub rich tabulate loguru${NC}"
+    echo -e "  ${WHITE}requirements.txt not found — skipping venv setup.${NC}"
+    echo -e "  ${WHITE}Install manually: pip install httpx huggingface_hub rich tabulate loguru${NC}"
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1.d: Hardware Detection${NC}"
+echo -e "${WHITE}Step 1.d: Hardware Detection${NC}"
 if HW_STR=$(python3 hardware_info.py 2>/dev/null); then
-    echo -e "  ${GREEN}✓ Detected: ${HW_STR}${NC}"
+    echo -e "  ${RED}✓ Detected: ${HW_STR}${NC}"
 else
-    echo -e "  ${YELLOW}(Could not detect hardware — ensure psutil is installed)${NC}"
+    echo -e "  ${WHITE}(Could not detect hardware — ensure psutil is installed)${NC}"
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1.e: Connecting to Bodega Inference Engine${NC}"
+echo -e "${WHITE}Step 1.e: Connecting to Bodega Inference Engine${NC}"
 echo -e "  Verifying engine is ready on localhost:44468..."
 POLL_INTERVAL=12
 while ! curl -s http://localhost:44468/health >/dev/null; do
-    echo -e "${RED}  Waiting for engine. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
+    echo -e "${WHITE}  Waiting for engine. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
     echo -e "  (Checking again in ${POLL_INTERVAL} seconds...)"
     sleep "$POLL_INTERVAL"
 done
 echo -e "  ${GREEN}✓ Engine is ready.${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 2: Model Selection${NC}"
+echo -e "${WHITE}Step 2: Model Selection${NC}"
 echo "Which model would you like to download?"
 echo "1) Bodega ORION 0.6B (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
 echo "2) Custom Model Repository from HuggingFace"
@@ -173,7 +173,7 @@ fi
 echo -e "\n${GREEN}Starting downloads...${NC}"
 
 for model in "${MODELS[@]}"; do
-    echo -e "\n${BLUE}Downloading $model...${NC}"
+    echo -e "\n${WHITE}Downloading $model...${NC}"
     if ! python3 -c "
 import sys, json, httpx
 
@@ -182,7 +182,7 @@ model_path = '''$model'''
 try:
     with httpx.stream('POST', url, json={'model_path': model_path}, timeout=None) as r:
         if r.status_code != 200:
-            print(f'\033[0;31mError {r.status_code} - Is the engine running?\033[0m')
+            print(f'\033[1;37mError {r.status_code} - Is the engine running?\033[0m')
             sys.exit(1)
             
         got_done = False
@@ -202,15 +202,15 @@ try:
                 except Exception:
                     pass
         if not got_done:
-            print('\n\033[0;31mDownload stream did not complete [DONE] - model may not be fully downloaded.\033[0m')
+            print('\n\033[1;37mDownload stream did not complete [DONE] - model may not be fully downloaded.\033[0m')
             sys.exit(1)
 except Exception as e:
-    print(f'\n\033[0;31mError downloading: {e}\033[0m')
+    print(f'\n\033[1;37mError downloading: {e}\033[0m')
     sys.exit(1)
 "; then
         DOWNLOAD_FAILED=1
-        echo -e "${RED}✗ Download failed for $model. Cannot proceed to load.${NC}"
-        echo -e "${YELLOW}  Please check: Bodega Sensors is running, toggle is GREEN, and you have network/HuggingFace access.${NC}"
+        echo -e "${WHITE}✗ Download failed for $model. Cannot proceed to load.${NC}"
+        echo -e "${WHITE}  Please check: Bodega Sensors is running, toggle is GREEN, and you have network/HuggingFace access.${NC}"
         exit 1
     fi
 done
@@ -223,7 +223,7 @@ if [ ${#MODELS[@]} -gt 0 ]; then
 fi
 
 # ─── Load model and inspect what adapter type the engine assigns ───────────────
-echo -e "${YELLOW}Loading and inspecting model adapter type...${NC}"
+echo -e "${WHITE}Loading and inspecting model adapter type...${NC}"
 
 # Write the inspector to a temp file. Uses detect_model_type.py (config.json) to detect
 # model_type before load — no lm→multimodal retry.
@@ -301,7 +301,7 @@ if [[ "${RSS_MB:-0}" -gt 0 ]] || [[ "${TOTAL_MB:-0}" -gt 0 ]]; then
 fi
 
 echo ""
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 if [[ "$MODEL_LOADED" == "1" ]]; then
     echo -e "  ${GREEN}Model Loaded:${NC}   $TARGET_MODEL"
     echo -e "  ${GREEN}Adapter Type:${NC}   ${MODEL_TYPE:-lm}"
@@ -309,20 +309,20 @@ if [[ "$MODEL_LOADED" == "1" ]]; then
     echo -e "  ${GREEN}Metal Peak:${NC}     ${METAL_MB:-0} MB  (Total: ${TOTAL_MB:-0} MB)"
     echo -e "  ${GREEN}PID:${NC}            ${PID_VAL:-N/A}"
 else
-    echo -e "  ${RED}Model FAILED to load:${NC} $TARGET_MODEL"
-    echo -e "  ${YELLOW}RAM/Metal: 0 MB — no model process is running.${NC}"
+    echo -e "  ${WHITE}Model FAILED to load:${NC} $TARGET_MODEL"
+    echo -e "  ${WHITE}RAM/Metal: 0 MB — no model process is running.${NC}"
     echo ""
-    echo -e "  ${YELLOW}Possible causes:${NC}"
+    echo -e "  ${WHITE}Possible causes:${NC}"
     echo -e "    • Download may have failed (check messages above)"
     echo -e "    • Bodega Inference Engine toggle may not be fully GREEN"
     echo -e "    • Model path may be incorrect or not MLX-compatible"
     echo ""
-    echo -e "  ${BLUE}Try:${NC} Re-run setup, ensure toggle is GREEN before continuing,"
+    echo -e "  ${WHITE}Try:${NC} Re-run setup, ensure toggle is GREEN before continuing,"
     echo -e "  and that the model downloaded successfully (look for '✓ Download Complete!')."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     exit 1
 fi
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 
 
@@ -362,13 +362,13 @@ mkdir -p results
 LAST_JSON=""
 if [[ "$run_bench" == "1" ]]; then
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
-    echo -e "  Please close other apps and IDEs so the benchmark can have"
-    echo -e "  true headroom and full SoC cores utilized for accurate results."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}  Please close other apps and IDEs so the benchmark can have${NC}"
+    echo -e "${YELLOW}  true headroom and full SoC cores utilized for accurate results.${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Press Enter when ready to start..."
-    echo -e "\n${BLUE}Running CB Sweep — results will open in browser when done...${NC}"
+    echo -e "\n${WHITE}Running CB Sweep — results will open in browser when done...${NC}"
     if [[ "$IS_MULTIMODAL" == "1" ]]; then
         python sweep_cb_configs.py --model "$TARGET_MODEL" --multimodal-sequential \
             --output "results/sweep_${TIMESTAMP}.json"
@@ -379,13 +379,13 @@ if [[ "$run_bench" == "1" ]]; then
     LAST_JSON="results/sweep_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "2" ]]; then
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
-    echo -e "  Please close other apps and IDEs so the benchmark can have"
-    echo -e "  true headroom and full SoC cores utilized for accurate results."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}  Please close other apps and IDEs so the benchmark can have${NC}"
+    echo -e "${YELLOW}  true headroom and full SoC cores utilized for accurate results.${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Press Enter when ready to start..."
-    echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
+    echo -e "\n${WHITE}Running compare_engines.py — results will open in browser when done...${NC}"
     LMSTUDIO_ID="${TARGET_MODEL##*/}"
     python compare_engines.py --model "$TARGET_MODEL" \
         --lmstudio-model-id "$LMSTUDIO_ID" \
@@ -393,28 +393,28 @@ elif [[ "$run_bench" == "2" ]]; then
         --leaderboard-url "https://leaderboard.srswti.com"
     LAST_JSON="results/compare_${TIMESTAMP}.json"
 elif [[ "$run_bench" == "3" ]]; then
-    echo -e "\n${BLUE}Launching Interactive Shell...${NC}"
+    echo -e "\n${WHITE}Launching Interactive Shell...${NC}"
     python interactive_shell.py
 else
     echo -e "\nYou can run benchmarks and interact with models anytime:"
-    echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
-    echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
-    echo -e "  ${YELLOW}python interactive_shell.py${NC}  (live chat and visuals)"
+    echo -e "  ${WHITE}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
+    echo -e "  ${WHITE}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
+    echo -e "  ${WHITE}python interactive_shell.py${NC}  (live chat and visuals)"
 fi
 
 # ─── Leaderboard prompt (after CB sweep only; compare auto-uploads) ───────────
 if [[ -n "$LAST_JSON" && -f "$LAST_JSON" && "$run_bench" == "1" ]]; then
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}  🏆 Share your results with the community!${NC}"
     echo ""
     echo -e "  Would you like to post your results to the global leaderboard?"
-    echo -e "  ${YELLOW}Only your chip, RAM, and best system TPS are shared${NC} — nothing"
+    echo -e "  ${WHITE}Only your chip, RAM, and best system TPS are shared${NC} — nothing"
     echo -e "  personal. It helps everyone see what's possible on different hardware."
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "  Post to leaderboard? [Y/n]: " post_leaderboard
     if [[ "$post_leaderboard" != "n" && "$post_leaderboard" != "N" ]]; then
-        echo -e "\n${BLUE}Uploading to leaderboard.srswti.com...${NC}"
+        echo -e "\n${WHITE}Uploading to leaderboard.srswti.com...${NC}"
         python show_results.py "$LAST_JSON" --upload "https://leaderboard.srswti.com"
     fi
 fi

@@ -63,7 +63,7 @@ def get_silicon_specs():
                      mem = data[0].get("memory", {})
                      total_mem = mem.get("total", 0) / (1024**3)
                      
-                     MACTOP_SPECS_CACHE = f"[bold yellow]System:[/bold yellow] {name} ({cores} CPU Cores: {pcores}P/{ecores}E | {gpu} GPU Cores) - [bold yellow]RAM:[/bold yellow] {total_mem:.0f} GB"
+                     MACTOP_SPECS_CACHE = f"[white]System:[/white] {name} ({cores} CPU Cores: {pcores}P/{ecores}E | {gpu} GPU Cores) - [white]RAM:[/white] {total_mem:.0f} GB"
                      return MACTOP_SPECS_CACHE
     except Exception:
          pass
@@ -72,12 +72,12 @@ def get_silicon_specs():
     return MACTOP_SPECS_CACHE
 
 def print_header():
-    console.print("\n" + "=" * 70, style="bold magenta")
-    console.print(" 🏪 BODEGA INFERENCE ENGINE — INTERACTIVE SHELL", style="bold cyan", justify="center")
+    console.print("\n" + "=" * 70, style="white")
+    console.print(" BODEGA INFERENCE ENGINE — INTERACTIVE SHELL", style="bold green", justify="center")
     specs = get_silicon_specs()
     if specs:
         console.print(specs, justify="center")
-    console.print("=" * 70, style="bold magenta")
+    console.print("=" * 70, style="white")
 
 def print_menu():
     table = Table(show_header=False, expand=True, box=None)
@@ -88,36 +88,36 @@ def print_menu():
     table.add_row("2", "Download a Model (Streaming SSE)")
     table.add_row("3", "Load a Model into Registry")
     table.add_row("4", "Unload a Model from Registry")
-    table.add_row("5", "[bold yellow]Test Live Continuous Batching (Parallel Requests)[/bold yellow]")
-    table.add_row("6", "[bold magenta]Interactive Chat Mode[/bold magenta]")
+    table.add_row("5", "Test Live Continuous Batching (Parallel Requests)")
+    table.add_row("6", "Interactive Chat Mode")
     table.add_row("7", "Read about config.yaml (Static Registry Setup)")
-    table.add_row("8", "[bold bright_cyan]Launch Real-Time Apple Silicon Telemetry (mactop)[/bold bright_cyan]")
-    table.add_row("9", "[bold yellow]Compare Engines (LM Studio vs Bodega)[/bold yellow]")
+    table.add_row("8", "Launch Real-Time Apple Silicon Telemetry (mactop)")
+    table.add_row("9", "Compare Engines (LM Studio vs Bodega)")
     table.add_row("10", "Exit")
     
-    console.print("\n[bold cyan]--- Main Menu ---[/bold cyan]")
+    console.print("\n[white]--- Main Menu ---[/white]")
     console.print(table)
 
 def check_health():
-    console.print("\n[bold cyan][+][/bold cyan] Checking Engine Health...")
+    console.print("\n[bold green][+][/bold green] Checking Engine Health...")
     try:
         r = httpx.get(f"{BASE_URL}/health", timeout=5.0)
         if r.status_code == 200:
             data = r.json()
-            console.print(f"    [bold]Status:[/bold] {data.get('status')}")
-            console.print(f"    [bold]Loaded Models:[/bold] {data.get('model_status')}")
+            console.print(f"    [white]Status:[/white] {data.get('status')}")
+            console.print(f"    [white]Loaded Models:[/white] {data.get('model_status')}")
         else:
-            console.print(f"    [red]HTTP Error {r.status_code}[/red]")
+            console.print(f"    [white]HTTP Error {r.status_code}[/white]")
         
         # Also check /v1/admin/loaded-models
         r_loaded = httpx.get(f"{BASE_URL}/v1/admin/loaded-models", timeout=5.0)
         if r_loaded.status_code == 200:
             models = r_loaded.json().get("data", [])
-            console.print("\n    [bold cyan]Detailed Process Status[/bold cyan]")
+            console.print("\n    [white]Detailed Process Status[/white]")
             if not models:
-                console.print("    [yellow]No models currently running.[/yellow]")
+                console.print("    [dim]No models currently running.[/dim]")
             else:
-                table = Table(show_header=True, header_style="bold magenta", expand=True)
+                table = Table(show_header=True, header_style="bold white", expand=True)
                 table.add_column("Model ID")
                 table.add_column("Status")
                 table.add_column("PID")
@@ -128,15 +128,15 @@ def check_health():
                     mem = m.get("memory", {})
                     gpu = f"{mem.get('metal_active_mb', 0):.1f} MB" if mem else "N/A"
                     cpu = f"{mem.get('rss_mb', 0):.1f} MB" if mem else "N/A"
-                    status_c = "[green]running[/green]" if m.get('status') == "running" else f"[red]{m.get('status')}[/red]"
+                    status_c = "[green]running[/green]" if m.get('status') == "running" else f"[white]{m.get('status')}[/white]"
                     table.add_row(m.get('id', 'N/A'), status_c, str(m.get('pid', 'N/A')), gpu, cpu)
                 
                 console.print(table)
         else:
-            console.print("    [yellow](Engine might not be running in multi-handler dynamic mode)[/yellow]")
+            console.print("    [dim](Engine might not be running in multi-handler dynamic mode)[/dim]")
             
     except Exception as e:
-        console.print(f"    [red]Error connecting to server: {e}[/red]")
+        console.print(f"    [white]Error connecting to server: {e}[/white]")
 
 def get_first_loaded_model() -> str | None:
     """Helper to get the first currently loaded model_id from the engine.
@@ -153,7 +153,7 @@ def get_first_loaded_model() -> str | None:
     return None
 
 def stream_download():
-    console.print("\n[bold cyan][+][/bold cyan] Stream Model Download")
+    console.print("\n[bold green][+][/bold green] Stream Model Download")
     console.print("    This invokes the /v1/admin/download-model-stream endpoint.")
     console.print("    1) srswti/bodega-orion-0.6b (Small, quick test)")
     console.print("    2) srswti/bodega-raptor-8b-mxfp4 (Full 8B model)")
@@ -168,15 +168,15 @@ def stream_download():
     elif choice == '3':
         model_path = input("Enter repo ID (e.g. mlx-community/Qwen2.5-1.5B-Instruct-4bit): ")
     else:
-        console.print("[red]Invalid choice.[/red]")
+        console.print("[white]Invalid choice.[/white]")
         return
 
     url = f"{BASE_URL}/v1/admin/download-model-stream"
-    console.print(f"\n[bold yellow]Downloading {model_path} from HuggingFace Hub...[/bold yellow]")
+    console.print(f"\n[white]Downloading {model_path} from HuggingFace Hub...[/white]")
     try:
         with httpx.stream("POST", url, json={"model_path": model_path}, timeout=None) as r:
             if r.status_code != 200:
-                console.print(f"[red]Failed to initiate download. Status: {r.status_code}[/red]")
+                console.print(f"[white]Failed to initiate download. Status: {r.status_code}[/white]")
                 try: console.print(r.read().decode())
                 except: pass
                 return
@@ -194,13 +194,13 @@ def stream_download():
                         sys.stdout.flush()
                         
                         if payload.get("status") == "error":
-                            console.print("\n[red][!] Error during download.[/red]")
+                            console.print("\n[white][!] Error during download.[/white]")
                             break
                     except json.JSONDecodeError:
                         pass
         console.print(f"\n[bold green][✔] {model_path} is cached on disk![/bold green]")
     except Exception as e:
-        console.print(f"\n[red]Error mapping download stream: {e}[/red]")
+        console.print(f"\n[white]Error mapping download stream: {e}[/white]")
 
 def get_model_type(model_path: str) -> str:
     """Detect model_type from config.json (lm | multimodal | whisper | embeddings)."""
@@ -208,14 +208,14 @@ def get_model_type(model_path: str) -> str:
     return detect_model_type(model_path)
 
 def load_model():
-    console.print("\n[bold cyan][+][/bold cyan] Dynamically Load a Model")
+    console.print("\n[bold green][+][/bold green] Dynamically Load a Model")
     path = Prompt.ask("Enter model_path", default="srswti/bodega-orion-0.6b")
     if not path: return
     mid = Prompt.ask("Enter model_id (alias)", default=path)
     
     mtype = get_model_type(path)
     if mtype == "multimodal":
-        console.print("  [cyan]-> Detected vision capabilities. Loading as multimodal.[/cyan]")
+        console.print("  [dim]-> Detected vision capabilities. Loading as multimodal.[/dim]")
         
     cb_choice = Confirm.ask("Enable Continuous Batching (High throughput)?")
     payload = {
@@ -233,32 +233,32 @@ def load_model():
         payload["max_concurrency"] = 64
         console.print(f"  [green]-> Configured CB with {payload['cb_max_num_seqs']} max seqs.[/green]")
         
-    console.print(f"\n[bold yellow]Spawning isolated handler process for {mid}...[/bold yellow]")
+    console.print(f"\n[white]Spawning isolated handler process for {mid}...[/white]")
     try:
         r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json=payload, timeout=120)
         if r.status_code in [200, 201]:
             console.print(f"[bold green][✔] Model '{mid}' successfully loaded to memory and is ready for inference![/bold green]")
         else:
-            console.print(f"[red][!] Failed. Code: {r.status_code}[/red]")
+            console.print(f"[white][!] Failed. Code: {r.status_code}[/white]")
             console.print(r.text)
     except Exception as e:
-        console.print(f"[red][!] Request error: {e}[/red]")
+        console.print(f"[white][!] Request error: {e}[/white]")
 
 def unload_model():
-    console.print("\n[bold cyan][+][/bold cyan] Unload a Model")
+    console.print("\n[bold green][+][/bold green] Unload a Model")
     mid = Prompt.ask("Enter the model_id to gracefully terminate")
     if not mid: return
     
-    console.print(f"[yellow]Unloading handler for {mid}...[/yellow]")
+    console.print(f"[white]Unloading handler for {mid}...[/white]")
     try:
         r = httpx.delete(f"{BASE_URL}/v1/admin/unload-model/{mid}", timeout=30)
         if r.status_code in [200, 204]:
             console.print(f"[bold green][✔] Unified Memory freed. Process gracefully killed.[/bold green]")
         else:
-            console.print(f"[red][!] Failed. Code: {r.status_code}[/red]")
+            console.print(f"[white][!] Failed. Code: {r.status_code}[/white]")
             console.print(r.text)
     except Exception as e:
-        console.print(f"[red][!] Request error: {e}[/red]")
+        console.print(f"[white][!] Request error: {e}[/white]")
 
 # --- Real-Time Continuous Batching Visualizer ---
 
@@ -272,7 +272,7 @@ async def run_one_stream(client, url, payload, index, state):
             if r.status_code != 200:
                 state[index]["think_text"] = ""
                 state[index]["visible_text"] = f"Error {r.status_code}"
-                state[index]["status"] = "[red]Error[/red]"
+                state[index]["status"] = "[white]Error[/white]"
                 state[index]["done"] = True
                 return
             async for line in r.aiter_lines():
@@ -312,11 +312,11 @@ async def run_one_stream(client, url, payload, index, state):
                     except: pass
     except Exception as e:
         state[index]["visible_text"] += f" Error: {e}"
-        state[index]["status"] = "[red]Error[/red]"
+        state[index]["status"] = "[white]Error[/white]"
         state[index]["done"] = True
 
 def live_continuous_batching():
-    console.print("\n[bold cyan][+] Real-Time Continuous Batching Visualizer[/bold cyan]")
+    console.print("\n[bold green][+] Real-Time Continuous Batching Visualizer[/bold green]")
     default_model = get_first_loaded_model() or "srswti/bodega-orion-0.6b"
     mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
@@ -334,16 +334,16 @@ def live_continuous_batching():
 
     if is_multimodal:
         console.print("")
-        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
-        console.print("[bold yellow]  ⚠  MULTIMODAL MODEL DETECTED[/bold yellow]")
-        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
-        console.print("[yellow]  This model loaded as a [bold]multimodal[/bold] adapter.[/yellow]")
-        console.print("[yellow]  Continuous batching for vision models is [bold]coming soon[/bold] to Bodega.[/yellow]")
-        console.print("[yellow]  Parallel requests will run [bold]sequentially[/bold] instead of batched.[/yellow]")
+        console.print("[white]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/white]")
+        console.print("[white]  ⚠  MULTIMODAL MODEL DETECTED[/white]")
+        console.print("[white]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/white]")
+        console.print("[white]  This model loaded as a [bold]multimodal[/bold] adapter.[/white]")
+        console.print("[white]  Continuous batching for vision models is [bold]coming soon[/bold] to Bodega.[/white]")
+        console.print("[white]  Parallel requests will run [bold]sequentially[/bold] instead of batched.[/white]")
         console.print("")
         console.print("[green]  ✓ You can still test throughput — requests run one-by-one.[/green]")
         console.print("[green]  ✓ For full batching, use an LM (language model) adapter.[/green]")
-        console.print("[bold yellow]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold yellow]")
+        console.print("[white]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/white]")
         console.print("")
         if not Confirm.ask("  Proceed anyway in sequential mode?", default=True):
             return
@@ -390,13 +390,13 @@ def live_continuous_batching():
         prompts.append(p)
         
     state = [
-        {"think_text": "", "visible_text": "", "status": "[yellow]Waiting...[/yellow]",
+        {"think_text": "", "visible_text": "", "status": "[dim]Waiting...[/dim]",
          "ttft": "...", "done": False, "prompt": p}
         for p in prompts
     ]
 
     def generate_table():
-        table = Table(show_header=True, header_style="bold magenta", expand=True, show_lines=True)
+        table = Table(show_header=True, header_style="bold white", expand=True, show_lines=True)
         table.add_column("Req", justify="center", width=5)
         table.add_column("Prompt", width=22)
         table.add_column("Status / TTFT", width=16)
@@ -410,7 +410,7 @@ def live_continuous_batching():
             
             lines = []
             for line in think_clean.split("\n"):
-                if line.strip(): lines.append(f"[dim white]{line.strip()}[/dim white]")
+                if line.strip(): lines.append(f"[dim]{line.strip()}[/dim]")
             for line in vis_clean.split("\n"):
                 if line.strip(): lines.append(f"[bold green]{line.strip()}[/bold green]")
             
@@ -448,7 +448,7 @@ def live_continuous_batching():
                 
             await asyncio.gather(refresh(), *tasks)
 
-    console.print("\n[bold yellow]Firing continuous batching cluster...[/bold yellow]\n")
+    console.print("\n[white]Firing continuous batching cluster...[/white]\n")
     
     # Open mactop in a new Terminal window and focus it
     console.print("  [dim]Opening mactop telemetry window...[/dim]")
@@ -459,7 +459,7 @@ end tell'''
     os.system(f"osascript -e '{script}' >/dev/null 2>&1")
     
     # Auto-load the model (config.json-based detection — no retry)
-    console.print(f"  [cyan]Loading model {mid}...[/cyan]")
+    console.print(f"  [white]Loading model {mid}...[/white]")
     mtype = get_model_type(mid)
     console.print(f"  [dim]-> Detected model_type from config.json: {mtype}[/dim]")
     load_ok = False
@@ -474,16 +474,16 @@ end tell'''
         if r.status_code == 409:
             console.print(f"  [green]✓ Already loaded (as {mtype})[/green]")
             if mtype == "multimodal":
-                console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                              "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                console.print("  [white]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                              "    The engine currently falls back to sequential execution for vision models.[/white]")
                 if not Confirm.ask("  Continue anyway?", default=True):
                     return
             load_ok = True
         elif r.status_code in [200, 201]:
             console.print(f"  [green]✓ Loaded as {mtype}[/green]")
             if mtype == "multimodal":
-                console.print("  [yellow]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
-                              "    The engine currently falls back to sequential execution for vision models.[/yellow]")
+                console.print("  [white]⚠ Note: Continuous batching for 'multimodal' models is coming soon to Bodega.\n"
+                              "    The engine currently falls back to sequential execution for vision models.[/white]")
                 if not Confirm.ask("  Continue anyway?", default=True):
                     return
             load_ok = True
@@ -493,13 +493,13 @@ end tell'''
                 msg = err.get("error", {}).get("message", r.text[:120])
             except Exception:
                 msg = r.text[:120]
-            console.print(f"  [red]failed ({r.status_code}): {msg}[/red]")
+            console.print(f"  [white]failed ({r.status_code}): {msg}[/white]")
     except Exception as e:
-        console.print(f"  [red]Error: {e}[/red]")
+        console.print(f"  [white]Error: {e}[/white]")
 
     if not load_ok:
-        console.print("  [red]✗ This model could not be loaded as 'lm' or 'multimodal'. "
-                      "Ensure it has an MLX tag on HuggingFace to be compatible with the Bodega Inference Engine.[/red]")
+        console.print("  [white]✗ This model could not be loaded as 'lm' or 'multimodal'. "
+                      "Ensure it has an MLX tag on HuggingFace to be compatible with the Bodega Inference Engine.[/white]")
         return
     
     with Live(generate_table(), console=console, refresh_per_second=10, vertical_overflow="visible") as live:
@@ -524,7 +524,7 @@ def _ensure_model_loaded(mid: str) -> bool:
     except Exception:
         pass
     # Model not loaded — load it
-    console.print(f"  [cyan]Loading model {mid}...[/cyan]")
+    console.print(f"  [white]Loading model {mid}...[/white]")
     mtype = get_model_type(mid)
     try:
         r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
@@ -539,22 +539,22 @@ def _ensure_model_loaded(mid: str) -> bool:
             return True
         err = r.json() if r.text else {}
         msg = err.get("error", {}).get("message", r.text[:200] if r.text else f"HTTP {r.status_code}")
-        console.print(f"  [red]Failed to load: {msg}[/red]")
+        console.print(f"  [white]Failed to load: {msg}[/white]")
     except Exception as e:
-        console.print(f"  [red]Error loading model: {e}[/red]")
+        console.print(f"  [white]Error loading model: {e}[/white]")
     return False
 
 
 # --- Interactive Chat Mode ---
 
 def interactive_chat():
-    console.print("\n[bold magenta][+] Interactive Chat Mode[/bold magenta]")
+    console.print("\n[bold green][+] Interactive Chat Mode[/bold green]")
     default_model = get_first_loaded_model() or "srswti/bodega-orion-0.6b"
     mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
 
     if not _ensure_model_loaded(mid):
-        console.print("[red]Please load a model first (option 3) or ensure the engine is running.[/red]")
+        console.print("[white]Please load a model first (option 3) or ensure the engine is running.[/white]")
         return
 
     messages = [
@@ -567,7 +567,7 @@ def interactive_chat():
     
     while True:
         try:
-            user_input = console.input("[bold blue]You:[/bold blue] ")
+            user_input = console.input("[bold white]You:[/bold white] ")
             if user_input.lower() in ['exit', 'quit']:
                 break
             if not user_input.strip():
@@ -582,7 +582,7 @@ def interactive_chat():
                 "max_tokens": 8192
             }
             
-            console.print("[bold magenta]Assistant:[/bold magenta] ", end="")
+            console.print("[bold green]Assistant:[/bold green] ", end="")
             
             raw_reply = ""
             in_think = False
@@ -594,7 +594,7 @@ def interactive_chat():
                         msg = err.get("error", {}).get("message", body[:200])
                     except Exception:
                         msg = body[:200] if body else f"HTTP {r.status_code}"
-                    console.print(f"[red]Error {r.status_code}: {msg}[/red]")
+                    console.print(f"[white]Error {r.status_code}: {msg}[/white]")
                     messages.pop()
                     continue
                 for line in r.iter_lines():
@@ -627,14 +627,14 @@ def interactive_chat():
             messages.append({"role": "assistant", "content": raw_reply})
             
         except KeyboardInterrupt:
-            console.print("\n[yellow]Exiting chat.[/yellow]")
+            console.print("\n[dim]Exiting chat.[/dim]")
             break
         except Exception as e:
-            console.print(f"\n[red]Error: {e}[/red]")
+            console.print(f"\n[white]Error: {e}[/white]")
             break
 
 def print_config_explanation():
-    console.print("\n[bold cyan][+] About config.yaml (Static Setup)[/bold cyan]")
+    console.print("\n[bold green][+] About config.yaml (Static Setup)[/bold green]")
     text = """
 The engine natively supports a dynamic multi-model registry where models
 are isolated in their own processes. While this interactive shell uses the
@@ -662,10 +662,10 @@ models:
 To launch the engine using this: The config path is supplied via environment 
 variables or args depending on the entry point wrapper.
 """
-    console.print(Panel(text, title="config.yaml Explained", border_style="blue"))
+    console.print(Panel(text, title="config.yaml Explained", border_style="white"))
 
 def run_compare_engines():
-    console.print("\n[bold cyan][+] Compare Engines (LM Studio vs Bodega)[/bold cyan]")
+    console.print("\n[bold green][+] Compare Engines (LM Studio vs Bodega)[/bold green]")
     console.print("")
     console.print("[dim]This will download the model in LM Studio (if needed), then prompt you to confirm[/dim]")
     console.print("[dim]you loaded it with 'Max Concurrent Predictions' = 32. Bodega is auto-loaded with CB.[/dim]")
@@ -685,13 +685,13 @@ def run_compare_engines():
             cwd=script_dir,
         )
     except Exception as e:
-        console.print(f"[red]Error running compare_engines: {e}[/red]")
+        console.print(f"[white]Error running compare_engines: {e}[/white]")
 
 
 def launch_mactop():
-    console.print("\n[bold cyan][+][/bold cyan] Launching Real-Time Apple Silicon Telemetry (mactop)...")
+    console.print("\n[bold green][+][/bold green] Launching Real-Time Apple Silicon Telemetry (mactop)...")
     if os.system("command -v mactop >/dev/null 2>&1") != 0:
-        console.print("[red]mactop is not installed. Please run: brew install mactop[/red]")
+        console.print("[white]mactop is not installed. Please run: brew install mactop[/white]")
         return
     
     # Open mactop in a NEW Terminal window side-by-side via osascript
@@ -706,7 +706,7 @@ def launch_mactop():
         console.print("  [green]✓ mactop launched in a new Terminal window.[/green]")
         console.print("  [dim]Close that window or press q inside mactop to stop it.[/dim]")
     else:
-        console.print("  [yellow]osascript failed — falling back to running mactop here (press q to exit).[/yellow]")
+        console.print("  [dim]osascript failed — falling back to running mactop here (press q to exit).[/dim]")
         time.sleep(1)
         os.system("mactop")
 
