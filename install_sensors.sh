@@ -74,7 +74,7 @@ if [[ $SENSORS_STATUS -eq 0 ]]; then
     echo -e "${BLUE}        INSTALLATION INSTRUCTIONS${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "\n${YELLOW}Step 1 — Install BodegaOS Sensors (required):${NC}"
-    echo -e "  1. Open the downloaded Bodega Sensors.dmg file from your current folder."
+    echo -e "  1. Open the downloaded Bodega Sensors.dmg from ${BLUE}~/Downloads${NC}."
     echo -e "  2. Drag & drop ${GREEN}BodegaOS Sensors${NC} into the Applications folder"
     echo -e "\n${YELLOW}Step 2 — Bodega Client app (optional, skip if you only need the inference engine):${NC}"
     echo -e "  When you downloaded the sensors, there is a ${GREEN}Bodega Client${NC} app as well."

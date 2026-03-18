@@ -9,53 +9,76 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Bodega Inference Engine Setup ===${NC}"
 echo ""
-echo -e "${YELLOW}Step 1: Installing Bodega Sensors & Inference Engine${NC}"
-read -p "Do you already have Bodega Sensors installed? [y/N]: " has_sensors
+echo -e "${YELLOW}Step 1: Bodega Sensors & Inference Engine${NC}"
+echo ""
+echo -e "  Do you already have ${GREEN}Bodega Sensors${NC} installed on this Mac?"
+echo -e "  (Bodega Sensors is the app that runs the Inference Engine.)"
+echo ""
+read -p "  Do you already have Bodega Sensors installed? [y/N]: " has_sensors
 echo ""
 
 if [[ "$has_sensors" == "y" || "$has_sensors" == "Y" ]]; then
-    echo -e "${GREEN}Skipping application download/install...${NC}"
+    echo -e "${GREEN}✓ Skipping download — you already have Bodega Sensors.${NC}"
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
-    echo -e "1. Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
-    echo -e "2. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON."
-    echo -e "3. Wait for the toggle to turn ${GREEN}GREEN${NC}."
+    echo -e "  ${GREEN}ACTION REQUIRED:${NC}"
+    echo -e "  1. Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
+    echo -e "  2. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON."
+    echo -e "  3. Wait for the toggle to turn ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    read -p "Press Enter once you have turned the toggle GREEN..."
+    while true; do
+        read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
+        if [[ "$toggle_done" == "y" || "$toggle_done" == "Y" ]]; then
+            break
+        fi
+        echo -e "  ${YELLOW}Please turn the Bodega Inference Engine toggle ON and wait for it to turn GREEN.${NC}"
+    done
 else
-    echo -e "This will download and install the Bodega Sensors app, which contains the Inference Engine."
+    echo -e "  Downloading Bodega Sensors (contains the Inference Engine)..."
     echo ""
 
-    # Run the local installation script
     if [ -f "./install_sensors.sh" ]; then
         bash ./install_sensors.sh
     else
         echo -e "${RED}Error: install_sensors.sh not found in the current directory.${NC}"
-        echo -e "Please ensure you are running this from the correct folder."
         exit 1
     fi
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
-    echo -e "1. Open the downloaded Bodega Sensors.dmg from ${BLUE}~/Downloads${NC}."
-    echo -e "2. Drag and drop ${GREEN}Bodega Sensors${NC} into your Applications folder."
+    echo -e "  ${GREEN}Step 1:${NC} Open the DMG from ${BLUE}~/Downloads${NC} and drag ${GREEN}Bodega Sensors${NC} into Applications."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    read -p "Press Enter once you have copied it to Applications..."
+    while true; do
+        read -p "  Have you copied Bodega Sensors to Applications? [y/N]: " copy_done
+        if [[ "$copy_done" == "y" || "$copy_done" == "Y" ]]; then
+            break
+        fi
+        echo -e "  ${YELLOW}Please complete the drag-and-drop, then answer yes.${NC}"
+    done
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "3. Double-click ${GREEN}Bodega Sensors${NC} in your Applications folder to open it."
+    echo -e "  ${GREEN}Step 2:${NC} Open ${GREEN}Bodega Sensors${NC} from your Applications folder."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    read -p "Press Enter once the app is open..."
+    while true; do
+        read -p "  Is the Bodega Sensors app open now? [y/N]: " app_open
+        if [[ "$app_open" == "y" || "$app_open" == "Y" ]]; then
+            break
+        fi
+        echo -e "  ${YELLOW}Please open Bodega Sensors from Applications, then answer yes.${NC}"
+    done
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "4. Find the ${YELLOW}Bodega Inference Engine${NC} toggle and click to turn it ON."
-    echo -e "5. Wait for the toggle to turn ${GREEN}GREEN${NC}."
+    echo -e "  ${GREEN}Step 3:${NC} Find the ${YELLOW}Bodega Inference Engine${NC} toggle and turn it ON. Wait for ${GREEN}GREEN${NC}."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    read -p "Press Enter once you have turned the toggle GREEN..."
+    while true; do
+        read -p "  Have you turned the toggle GREEN? [y/N]: " toggle_done
+        if [[ "$toggle_done" == "y" || "$toggle_done" == "Y" ]]; then
+            break
+        fi
+        echo -e "  ${YELLOW}Please turn the toggle ON and wait for it to turn GREEN.${NC}"
+    done
 fi
 
 echo ""
@@ -136,6 +159,17 @@ if HW_STR=$(python3 hardware_info.py 2>/dev/null); then
 else
     echo -e "  ${YELLOW}(Could not detect hardware — ensure psutil is installed)${NC}"
 fi
+
+echo ""
+echo -e "${YELLOW}Step 1.e: Connecting to Bodega Inference Engine${NC}"
+echo -e "  Verifying engine is ready on localhost:44468..."
+POLL_INTERVAL=12
+while ! curl -s http://localhost:44468/health >/dev/null; do
+    echo -e "${RED}  Waiting for engine. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
+    echo -e "  (Checking again in ${POLL_INTERVAL} seconds...)"
+    sleep "$POLL_INTERVAL"
+done
+echo -e "  ${GREEN}✓ Engine is ready.${NC}"
 
 echo ""
 echo -e "${YELLOW}Step 2: Model Selection${NC}"
@@ -225,17 +259,7 @@ if [[ "$model_choice" == "3" ]]; then
     exit 0
 fi
 
-echo -e "\n${YELLOW}Connecting to Bodega Inference Engine on localhost:44468...${NC}"
-
-# Poll every 10-15 seconds (not every few seconds) while waiting for engine
-POLL_INTERVAL=12
-while ! curl -s http://localhost:44468/health >/dev/null; do
-    echo -e "${RED}Waiting for localhost:44468. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
-    echo -e "  (Checking again in ${POLL_INTERVAL} seconds...)"
-    sleep "$POLL_INTERVAL"
-done
-
-echo -e "${GREEN}✓ Connected to Engine! Starting downloads...${NC}"
+echo -e "\n${GREEN}Starting downloads...${NC}"
 
 for model in "${MODELS[@]}"; do
     echo -e "\n${BLUE}Downloading $model...${NC}"
