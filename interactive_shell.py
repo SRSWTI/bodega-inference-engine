@@ -15,6 +15,8 @@ including:
 Ensure the engine is running on port 44468 (or configure BASE_URL below).
 """
 
+from __future__ import annotations
+
 import sys
 import json
 import time
@@ -136,8 +138,9 @@ def check_health():
     except Exception as e:
         console.print(f"    [red]Error connecting to server: {e}[/red]")
 
-def get_first_loaded_model() -> str:
-    """Helper to get the first currently loaded model_id from the engine."""
+def get_first_loaded_model() -> str | None:
+    """Helper to get the first currently loaded model_id from the engine.
+    Returns None if no models are loaded."""
     try:
         r = httpx.get(f"{BASE_URL}/v1/admin/loaded-models", timeout=2.0)
         if r.status_code == 200:
@@ -147,7 +150,7 @@ def get_first_loaded_model() -> str:
                     return m.get('id')
     except Exception:
         pass
-    return "srswti/bodega-orion-0.6b"
+    return None
 
 def stream_download():
     console.print("\n[bold cyan][+][/bold cyan] Stream Model Download")
@@ -314,7 +317,7 @@ async def run_one_stream(client, url, payload, index, state):
 
 def live_continuous_batching():
     console.print("\n[bold cyan][+] Real-Time Continuous Batching Visualizer[/bold cyan]")
-    default_model = get_first_loaded_model()
+    default_model = get_first_loaded_model() or "srswti/bodega-orion-0.6b"
     mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
 
@@ -509,20 +512,57 @@ end tell'''
     except Exception:
         pass
 
+def _ensure_model_loaded(mid: str) -> bool:
+    """Load model if not already loaded. Returns True if model is ready for chat."""
+    try:
+        r = httpx.get(f"{BASE_URL}/v1/admin/loaded-models", timeout=2.0)
+        if r.status_code == 200:
+            models = r.json().get("data", [])
+            for m in models:
+                if m.get("id") == mid and m.get("status") == "running":
+                    return True
+    except Exception:
+        pass
+    # Model not loaded — load it
+    console.print(f"  [cyan]Loading model {mid}...[/cyan]")
+    mtype = get_model_type(mid)
+    try:
+        r = httpx.post(f"{BASE_URL}/v1/admin/load-model", json={
+            "model_path": mid, "model_id": mid,
+            "model_type": mtype,
+            "continuous_batching": True,
+            "cb_max_num_seqs": 128,
+            "context_length": 8192
+        }, timeout=120)
+        if r.status_code in [200, 201, 409]:
+            console.print(f"  [green]✓ Model ready[/green]\n")
+            return True
+        err = r.json() if r.text else {}
+        msg = err.get("error", {}).get("message", r.text[:200] if r.text else f"HTTP {r.status_code}")
+        console.print(f"  [red]Failed to load: {msg}[/red]")
+    except Exception as e:
+        console.print(f"  [red]Error loading model: {e}[/red]")
+    return False
+
+
 # --- Interactive Chat Mode ---
 
 def interactive_chat():
     console.print("\n[bold magenta][+] Interactive Chat Mode[/bold magenta]")
-    default_model = get_first_loaded_model()
+    default_model = get_first_loaded_model() or "srswti/bodega-orion-0.6b"
     mid = Prompt.ask("Enter target model_id", default=default_model)
     if not mid: return
-    
+
+    if not _ensure_model_loaded(mid):
+        console.print("[red]Please load a model first (option 3) or ensure the engine is running.[/red]")
+        return
+
     messages = [
         {"role": "system", "content": "You are a helpful assistant."}
     ]
-    
+
     url = f"{BASE_URL}/v1/chat/completions"
-    
+
     console.print(f"\n[green]Connected to {mid}. Type 'exit' to quit.[/green]\n")
     
     while True:
@@ -548,7 +588,13 @@ def interactive_chat():
             in_think = False
             with httpx.stream("POST", url, json=payload, timeout=120) as r:
                 if r.status_code != 200:
-                    console.print(f"[red]Error {r.status_code}[/red]")
+                    body = r.read().decode("utf-8", errors="replace")
+                    try:
+                        err = json.loads(body)
+                        msg = err.get("error", {}).get("message", body[:200])
+                    except Exception:
+                        msg = body[:200] if body else f"HTTP {r.status_code}"
+                    console.print(f"[red]Error {r.status_code}: {msg}[/red]")
                     messages.pop()
                     continue
                 for line in r.iter_lines():

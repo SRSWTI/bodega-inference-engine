@@ -151,8 +151,7 @@ echo -e "${YELLOW}Step 2: Model Selection${NC}"
 echo "Which model would you like to download?"
 echo "1) Bodega ORION 0.6B (srswti/bodega-orion-0.6b) - Ultra-fast, great for continuous batching tests"
 echo "2) Custom Model Repository from HuggingFace"
-echo "3) Skip Model Download"
-read -p "Select an option [1-3]: " model_choice
+read -p "Select an option [1-2]: " model_choice
 
 MODELS=()
 if [[ "$model_choice" == "1" ]]; then
@@ -169,69 +168,6 @@ if [ ${#MODELS[@]} -eq 0 ]; then
     TARGET_MODEL="srswti/bodega-orion-0.6b"
 else
     TARGET_MODEL=${MODELS[0]}
-fi
-
-if [[ "$model_choice" == "3" ]]; then
-    echo -e "\n${GREEN}Setup complete!${NC}"
-    echo ""
-    echo "Would you like to run a benchmark now?"
-    echo "1) Advanced Benchmark (Continuous Batching Config Sweep)"
-    echo "2) Compare Engines (LM Studio vs Bodega CB)"
-    echo "3) No, exit setup"
-    read -p "Select an option [1-3]: " run_bench
-
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    mkdir -p results
-    SKIP_LAST_JSON=""
-
-    if [[ "$run_bench" == "1" ]]; then
-        echo ""
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
-        echo -e "  Please close other apps and IDEs so the benchmark can have"
-        echo -e "  true headroom and full SoC cores utilized for accurate results."
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        read -p "  Press Enter when ready to start..."
-        echo -e "\n${BLUE}Running CB Configuration Sweep — results will open in browser when done...${NC}"
-        python sweep_cb_configs.py --model "$TARGET_MODEL" --output "results/sweep_${TIMESTAMP}.json"
-        SKIP_LAST_JSON="results/sweep_${TIMESTAMP}.json"
-    elif [[ "$run_bench" == "2" ]]; then
-        echo ""
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${YELLOW}  ⚠  BEFORE BENCHMARK:${NC}"
-        echo -e "  Please close other apps and IDEs so the benchmark can have"
-        echo -e "  true headroom and full SoC cores utilized for accurate results."
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        read -p "  Press Enter when ready to start..."
-        echo -e "\n${BLUE}Running compare_engines.py — results will open in browser when done...${NC}"
-        LMSTUDIO_ID="${TARGET_MODEL##*/}"
-        python compare_engines.py --model "$TARGET_MODEL" \
-            --lmstudio-model-id "$LMSTUDIO_ID" \
-            --output "results/compare_${TIMESTAMP}.json" \
-            --leaderboard-url "https://leaderboard.srswti.com"
-        SKIP_LAST_JSON="results/compare_${TIMESTAMP}.json"
-    else
-        echo -e "\nYou can run benchmarks anytime:"
-        echo -e "  ${YELLOW}python sweep_cb_configs.py --model $TARGET_MODEL${NC}  (CB config sweep)"
-        echo -e "  ${YELLOW}python compare_engines.py --model $TARGET_MODEL${NC}  (LM Studio vs Bodega)"
-    fi
-
-    if [[ -n "$SKIP_LAST_JSON" && -f "$SKIP_LAST_JSON" && "$run_bench" == "1" ]]; then
-        echo ""
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${GREEN}  🏆 Share your results with the community!${NC}"
-        echo ""
-        echo -e "  Would you like to post your results to the global leaderboard?"
-        echo -e "  ${YELLOW}Only your chip, RAM, and best system TPS are shared${NC} — nothing"
-        echo -e "  personal. It helps everyone see what's possible on different hardware."
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        read -p "  Post to leaderboard? [Y/n]: " post_leaderboard
-        if [[ "$post_leaderboard" != "n" && "$post_leaderboard" != "N" ]]; then
-            echo -e "\n${BLUE}Uploading to leaderboard.srswti.com...${NC}"
-            python show_results.py "$SKIP_LAST_JSON" --upload "https://leaderboard.srswti.com"
-        fi
-    fi
-    exit 0
 fi
 
 echo -e "\n${GREEN}Starting downloads...${NC}"
@@ -282,7 +218,9 @@ done
 echo -e "\n${GREEN}=== Downloads Complete ===${NC}"
 echo ""
 
-TARGET_MODEL=${MODELS[0]}
+if [ ${#MODELS[@]} -gt 0 ]; then
+    TARGET_MODEL=${MODELS[0]}
+fi
 
 # ─── Load model and inspect what adapter type the engine assigns ───────────────
 echo -e "${YELLOW}Loading and inspecting model adapter type...${NC}"

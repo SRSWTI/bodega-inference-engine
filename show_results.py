@@ -563,14 +563,19 @@ def main() -> None:
 
     abs_path = os.path.abspath(out_path)
     print(f"\n  Report saved → {abs_path}")
-    print("  Opening in browser...")
-    webbrowser.open(f"file://{abs_path}")
 
     if args.upload:
         if sweep_path:
             upload_to_leaderboard(sweep_path, args.upload)
         if compare_path:
             upload_to_leaderboard(compare_path, args.upload)
+        # Redirect to leaderboard so user can see their submission
+        leaderboard_url = args.upload.rstrip("/")
+        print(f"  Opening leaderboard in browser → {leaderboard_url}")
+        webbrowser.open(leaderboard_url)
+    else:
+        print("  Opening in browser...")
+        webbrowser.open(f"file://{abs_path}")
 
 
 if __name__ == "__main__":

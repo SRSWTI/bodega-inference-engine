@@ -70,6 +70,7 @@ import argparse
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime
 from typing import Any
@@ -755,10 +756,32 @@ async def _main() -> None:
     # ── Reachability check ─────────────────────────────────────────────────
     if not args.no_lmstudio:
         lm_up = await _is_reachable(args.lmstudio_url)
-        if not lm_up:
-            print(f"\n  ⚠  LM Studio not reachable at {args.lmstudio_url} — skipping.")
-            args.no_lmstudio = True
-        else:
+        while not lm_up:
+            print(f"\n  ⚠  LM Studio is not reachable at {args.lmstudio_url}")
+            print(f"     The LM Studio app may not be open or the server may not be running.")
+            print()
+            resp = input(
+                "  Open LM Studio, then press Enter to retry. "
+                "Or type 'sweep' to run Advanced Config Sweep (Bodega only) instead, "
+                "or 'q' to exit: "
+            ).strip().lower()
+            if resp == "q":
+                print("\n  Exiting.")
+                sys.exit(0)
+            if resp == "sweep":
+                print("\n  Running Advanced Config Sweep (Bodega only)...")
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                sweep_out = os.path.join("results", f"sweep_{ts}.json")
+                os.makedirs("results", exist_ok=True)
+                sweep_script = os.path.join(_HERE, "sweep_cb_configs.py")
+                cmd = [sys.executable, sweep_script, "--model", args.model, "--output", sweep_out]
+                if args.leaderboard_url:
+                    cmd.extend(["--leaderboard-url", args.leaderboard_url])
+                code = subprocess.call(cmd, cwd=_HERE)
+                sys.exit(code if code else 0)
+            # Retry reachability
+            lm_up = await _is_reachable(args.lmstudio_url)
+        if lm_up:
             print(f"\n  ✓  LM Studio reachable  ({args.lmstudio_url})")
 
             # ── Download model in LM Studio (if not skipped) ─────────────────
