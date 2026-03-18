@@ -11,9 +11,6 @@ echo -e "${BLUE}=== Bodega Inference Engine Setup ===${NC}"
 echo ""
 echo -e "${YELLOW}Step 1: Bodega Sensors & Inference Engine${NC}"
 echo ""
-echo -e "  Do you already have ${GREEN}Bodega Sensors${NC} installed on this Mac?"
-echo -e "  (Bodega Sensors is the app that runs the Inference Engine.)"
-echo ""
 read -p "  Do you already have Bodega Sensors installed? [y/N]: " has_sensors
 echo ""
 
