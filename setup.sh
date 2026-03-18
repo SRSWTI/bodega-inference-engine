@@ -39,7 +39,7 @@ else
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}ACTION REQUIRED TO PROCEED:${NC}"
-    echo -e "1. Open the downloaded Bodega Sensors.dmg file from your current folder."
+    echo -e "1. Open the downloaded Bodega Sensors.dmg from ${BLUE}~/Downloads${NC}."
     echo -e "2. Drag and drop ${GREEN}Bodega Sensors${NC} into your Applications folder."
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     read -p "Press Enter once you have copied it to Applications..."
@@ -227,31 +227,36 @@ fi
 
 echo -e "\n${YELLOW}Connecting to Bodega Inference Engine on localhost:44468...${NC}"
 
-# Wait until health check passes
+# Poll every 10-15 seconds (not every few seconds) while waiting for engine
+POLL_INTERVAL=12
 while ! curl -s http://localhost:44468/health >/dev/null; do
     echo -e "${RED}Waiting for localhost:44468. Please ensure the toggle is GREEN in Bodega Sensors!${NC}"
-    sleep 3
+    echo -e "  (Checking again in ${POLL_INTERVAL} seconds...)"
+    sleep "$POLL_INTERVAL"
 done
 
 echo -e "${GREEN}✓ Connected to Engine! Starting downloads...${NC}"
 
 for model in "${MODELS[@]}"; do
     echo -e "\n${BLUE}Downloading $model...${NC}"
-    python3 -c "
+    if ! python3 -c "
 import sys, json, httpx
 
 url = 'http://localhost:44468/v1/admin/download-model-stream'
+model_path = '''$model'''
 try:
-    with httpx.stream('POST', url, json={'model_path': '$model'}, timeout=None) as r:
+    with httpx.stream('POST', url, json={'model_path': model_path}, timeout=None) as r:
         if r.status_code != 200:
             print(f'\033[0;31mError {r.status_code} - Is the engine running?\033[0m')
             sys.exit(1)
             
+        got_done = False
         for line in r.iter_lines():
             if line.startswith('data: '):
                 dstr = line[6:]
                 if dstr == '[DONE]':
                     print('\n\033[0;32m✓ Download Complete!\033[0m')
+                    got_done = True
                     break
                 try:
                     data = json.loads(dstr)
@@ -261,12 +266,21 @@ try:
                         sys.stdout.flush()
                 except Exception:
                     pass
+        if not got_done:
+            print('\n\033[0;31mDownload stream did not complete [DONE] - model may not be fully downloaded.\033[0m')
+            sys.exit(1)
 except Exception as e:
     print(f'\n\033[0;31mError downloading: {e}\033[0m')
-"
+    sys.exit(1)
+"; then
+        DOWNLOAD_FAILED=1
+        echo -e "${RED}✗ Download failed for $model. Cannot proceed to load.${NC}"
+        echo -e "${YELLOW}  Please check: Bodega Sensors is running, toggle is GREEN, and you have network/HuggingFace access.${NC}"
+        exit 1
+    fi
 done
 
-echo -e "\n${GREEN}=== Setup Complete! ===${NC}"
+echo -e "\n${GREEN}=== Downloads Complete ===${NC}"
 echo ""
 
 TARGET_MODEL=${MODELS[0]}
@@ -335,17 +349,42 @@ except Exception:
     print("MODEL_TYPE=lm"); print("RSS_MB=0"); print("METAL_MB=0"); print("TOTAL_MB=0"); print("PID_VAL=N/A")
 PYEOF
 
-# Run it and capture only the KEY=VALUE lines into shell vars
-eval "$(python3 /tmp/bodega_model_inspect.py "$TARGET_MODEL" "$BODEGA_TESTS_DIR" 2>&1 | grep -E '^(MODEL_TYPE|RSS_MB|METAL_MB|TOTAL_MB|PID_VAL)=')"
+# Run it and capture only the KEY=VALUE lines into shell vars (with defaults)
+MODEL_TYPE=lm
+RSS_MB=0
+METAL_MB=0
+TOTAL_MB=0
+PID_VAL=N/A
+eval "$(python3 /tmp/bodega_model_inspect.py "$TARGET_MODEL" "$BODEGA_TESTS_DIR" 2>&1 | grep -E '^(MODEL_TYPE|RSS_MB|METAL_MB|TOTAL_MB|PID_VAL)=')" 2>/dev/null || true
 
+# Validate: did the model actually load? (RSS_MB > 0 means real load)
+MODEL_LOADED=0
+if [[ "${RSS_MB:-0}" -gt 0 ]] || [[ "${TOTAL_MB:-0}" -gt 0 ]]; then
+    MODEL_LOADED=1
+fi
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  ${GREEN}Model Loaded:${NC}   $TARGET_MODEL"
-echo -e "  ${GREEN}Adapter Type:${NC}   $MODEL_TYPE"
-echo -e "  ${GREEN}RAM (RSS):${NC}      ${RSS_MB} MB"
-echo -e "  ${GREEN}Metal Peak:${NC}     ${METAL_MB} MB  (Total: ${TOTAL_MB} MB)"
-echo -e "  ${GREEN}PID:${NC}            ${PID_VAL}"
+if [[ "$MODEL_LOADED" == "1" ]]; then
+    echo -e "  ${GREEN}Model Loaded:${NC}   $TARGET_MODEL"
+    echo -e "  ${GREEN}Adapter Type:${NC}   ${MODEL_TYPE:-lm}"
+    echo -e "  ${GREEN}RAM (RSS):${NC}      ${RSS_MB:-0} MB"
+    echo -e "  ${GREEN}Metal Peak:${NC}     ${METAL_MB:-0} MB  (Total: ${TOTAL_MB:-0} MB)"
+    echo -e "  ${GREEN}PID:${NC}            ${PID_VAL:-N/A}"
+else
+    echo -e "  ${RED}Model FAILED to load:${NC} $TARGET_MODEL"
+    echo -e "  ${YELLOW}RAM/Metal: 0 MB — no model process is running.${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Possible causes:${NC}"
+    echo -e "    • Download may have failed (check messages above)"
+    echo -e "    • Bodega Inference Engine toggle may not be fully GREEN"
+    echo -e "    • Model path may be incorrect or not MLX-compatible"
+    echo ""
+    echo -e "  ${BLUE}Try:${NC} Re-run setup, ensure toggle is GREEN before continuing,"
+    echo -e "  and that the model downloaded successfully (look for '✓ Download Complete!')."
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    exit 1
+fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 
