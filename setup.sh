@@ -346,7 +346,7 @@ if [[ "$IS_MULTIMODAL" == "1" ]]; then
     echo "1) Advanced Benchmark (Throughput Sweep, Sequential mode)"
     echo "2) Compare Engines (LM Studio vs Bodega CB)"
 else
-    echo "1) Advanced Benchmark (Continuous Batching Config Sweep)"
+    echo "1) Continuous Batching Config Sweep (Recommended)"
     echo "2) Compare Engines (LM Studio vs Bodega CB)"
 fi
 echo "3) No, just let me use the Interactive Chat Shell!"
