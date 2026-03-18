@@ -11,6 +11,8 @@ echo -e "${BLUE}=== Bodega Inference Engine Setup ===${NC}"
 echo ""
 echo -e "${YELLOW}Step 1: Bodega Sensors & Inference Engine${NC}"
 echo ""
+echo -e "  The ${GREEN}Bodega Inference Engine${NC} runs inside the ${GREEN}Bodega Sensors${NC} app."
+echo ""
 read -p "  Do you already have Bodega Sensors installed? [y/N]: " has_sensors
 echo ""
 
