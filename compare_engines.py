@@ -16,6 +16,7 @@ sweep_cb_configs.py results on M1 Max with bodega-orion-0.6b):
     C=1–8   →  prefill-batch=4  (best latency/throughput balance)
     C=16    →  prefill-batch=8  (646 tok/s system throughput)
     C=32    →  prefill-batch=8  (838+ tok/s system throughput)
+    C=64    →  prefill-batch=8  (higher throughput)
 
 Use --no-optimal to disable this and use a fixed --cb-prefill-batch-size.
 
@@ -26,9 +27,9 @@ The report includes:
   • Peak throughput comparison (each engine at its best)
 
 Prerequisites:
-    For fair benchmarks, load the model in LM Studio with max_concurrency=32
+    For fair benchmarks, load the model in LM Studio with max_concurrency=64
     (that's LM Studio's batching config). Bodega is auto-loaded with CB configs
-    by this script. The benchmark tests up to C=32.
+    by this script. The benchmark tests up to C=64.
 
 Usage:
     # Full comparison — loads model in Bodega, model already loaded in LM Studio
@@ -36,7 +37,7 @@ Usage:
 
     # Custom concurrency sweep
     python compare_engines.py --model srswti/bodega-orion-0.6b \\
-        --concurrencies 4,8,16,32 --max-tokens 256 --prompts 10
+        --concurrencies 4,8,16,32,64 --max-tokens 256 --prompts 10
 
     # Use a different model-id in LM Studio (if it differs from the HF name)
     python compare_engines.py --model srswti/bodega-raptor-0.9b \\
@@ -58,7 +59,7 @@ Usage:
 Defaults:
     --lmstudio-url     http://127.0.0.1:1234
     --bodega-url       http://localhost:44468
-    --concurrencies    1,4,8,16,32
+    --concurrencies    1,4,8,16,32,64
     --max-tokens       256
     --prompts          10
     --warmup           1
@@ -119,7 +120,7 @@ from benchmark_llm import (  # noqa: E402
 
 DEFAULT_LMSTUDIO_URL  = "http://127.0.0.1:1234"
 DEFAULT_BODEGA_URL    = "http://localhost:44468"
-DEFAULT_CONCURRENCIES = "1,4,8,16,32"
+DEFAULT_CONCURRENCIES = "1,4,8,16,32,64"
 
 
 
@@ -129,6 +130,7 @@ OPTIMAL_CB_PREFILL_BATCH: dict[int, int] = {
     8:  4,
     16: 8,
     32: 8,
+    64: 8,
 }
 
 
@@ -736,7 +738,7 @@ async def _main() -> None:
     print("=" * W_FULL)
     print("  ENGINE COMPARISON  —  LM Studio  vs  Bodega Continuous Batching")
     print()
-    print("  ⚠  For fair benchmarks: Load the model in LM Studio with max_concurrency=32")
+    print("  ⚠  For fair benchmarks: Load the model in LM Studio with max_concurrency=64")
     print("     (LM Studio's batching config). Bodega is auto-loaded with CB by this script.")
     print("=" * W_FULL)
     print(f"  Model:              {args.model}")
@@ -791,16 +793,16 @@ async def _main() -> None:
                 if not ok:
                     print("  (Download skipped or failed — download manually in LM Studio, or use --skip-download)")
 
-            # ── Confirm LM Studio loaded with Max Concurrent Predictions=32 ─
+            # ── Confirm LM Studio loaded with Max Concurrent Predictions=64 ─
             if not args.yes:
                 model_short = args.model.split("/")[-1]
                 print()
                 resp = input(
                     f"  Did you load the {model_short} model with "
-                    "'Max Concurrent Predictions' as 32 when loading it in LM Studio? [y/N]: "
+                    "'Max Concurrent Predictions' as 64 when loading it in LM Studio? [y/N]: "
                 ).strip().lower()
                 if resp not in ("y", "yes"):
-                    print("\n  Please load the model in LM Studio with Max Concurrent Predictions=32,")
+                    print("\n  Please load the model in LM Studio with Max Concurrent Predictions=64,")
                     print("  then run this script again.")
                     sys.exit(0)
 

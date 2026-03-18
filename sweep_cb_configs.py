@@ -73,7 +73,7 @@ def get_telemetry():
 async def run_sweep(base_url: str, model: str, output: str = ""):
     max_tokens = 128
     
-    configs = [(8, 2), (8, 4), (8, 8), (16, 4), (16, 8), (16, 16), (32, 8), (32, 16)]
+    configs = [(8, 2), (8, 4), (8, 8), (16, 4), (16, 8), (16, 16), (32, 8), (32, 16), (64, 8), (64, 16)]
     mixed_prompts = PROMPTS
     same_prompt = [PROMPTS[6]]
     
