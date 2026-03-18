@@ -15,4 +15,5 @@ chmod +x setup.sh
 [ -f install_sensors.sh ] && chmod +x install_sensors.sh
 
 echo "Running setup..."
-./setup.sh
+# Use /dev/tty so setup can read from the terminal even when install was run via curl|bash
+./setup.sh < /dev/tty
