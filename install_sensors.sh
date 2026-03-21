@@ -1,6 +1,6 @@
 #!/bin/bash
 # Configuration
-VERSION="1.0.81"
+VERSION="1.0.87"
 BASE_URL="https://sensors-updates.srswti.com/darwin/arm64"
 MIN_KERNEL_VERSION=26 # Tahoe (Darwin 26)
 # Colors
