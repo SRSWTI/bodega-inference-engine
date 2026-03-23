@@ -59,7 +59,7 @@ SENSORS_STATUS=$?
 # When you downloaded the sensors, there is a Bodega Client app as well.
 # You can download it from srswti.com/downloads or run: curl -L https://assets.srswti.com/darwin/arm64/
 # to see available builds.
-# CLIENT_VERSION="1.0.178"
+# CLIENT_VERSION="1.0.197"
 # CLIENT_FILENAME="BodegaOS-${CLIENT_VERSION}-arm64.dmg"
 # CLIENT_URL="https://assets.srswti.com/darwin/arm64/${CLIENT_FILENAME}"
 # CLIENT_PATH="${DOWNLOAD_DIR}/${CLIENT_FILENAME}"
@@ -79,13 +79,13 @@ if [[ $SENSORS_STATUS -eq 0 ]]; then
     echo -e "\n${YELLOW}Step 2 — Bodega Client app (optional, skip if you only need the inference engine):${NC}"
     echo -e "  When you downloaded the sensors, there is a ${GREEN}Bodega Client${NC} app as well."
     echo -e "  Download from ${BLUE}srswti.com/downloads${NC}, or directly:"
-    echo -e "  ${BLUE}https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
+    echo -e "  ${BLUE}https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.197-arm64.dmg${NC}"
     echo -e "  Or via curl:"
-    echo -e "  ${BLUE}curl -L -o \"\$HOME/Downloads/BodegaOS-1.0.178-arm64.dmg\" https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg${NC}"
+    echo -e "  ${BLUE}curl -L -o \"\$HOME/Downloads/BodegaOS-1.0.197-arm64.dmg\" https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.197-arm64.dmg${NC}"
     read -p "  Download Bodega Client via curl now? [y/N]: " dl_client
     if [[ "$dl_client" == "y" || "$dl_client" == "Y" ]]; then
-        CLIENT_URL="https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.178-arm64.dmg"
-        CLIENT_PATH="${DOWNLOAD_DIR}/BodegaOS-1.0.178-arm64.dmg"
+        CLIENT_URL="https://assets.srswti.com/darwin/arm64/BodegaOS-1.0.197-arm64.dmg"
+        CLIENT_PATH="${DOWNLOAD_DIR}/BodegaOS-1.0.197-arm64.dmg"
         echo -e "\n${BLUE}Downloading Bodega Client...${NC}"
         curl -L -# -o "$CLIENT_PATH" "$CLIENT_URL"
         if [[ $? -eq 0 ]]; then
