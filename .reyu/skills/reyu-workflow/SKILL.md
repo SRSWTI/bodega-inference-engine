@@ -15,6 +15,7 @@ This repository is mapped with Reyu: every module has a `.ryu` spec under `.reyu
 - `reyu fix <spec.ryu>` — repair loop: the local model proposes a fixed spec using the checker's error; a diff is shown; the user must approve. Never run with `--yes` unless the user explicitly said to apply without asking.
 - `reyu accept <spec.ryu>` — flips DRAFT to ACCEPTED. **Never run this on your own.** Acceptance is the human's word. Ask, show the spec, wait for explicit approval.
 - `reyu build <spec.ryu> --app <dir>` — regenerate a module's implementation from its spec; judged by tests + checker; installs only with `--force` after a pass, and only with the user's approval.
+- `reyu tests <spec.ryu>` — emit the pytest suite the spec implies (walked states, boundary probes, counterexample witnesses; each case cites its invariant). Run it after accepting a spec, and again inside any fix loop: the emitted reds name the exact promise a change breaks.
 
 ## Finding code: grep first, read after
 
@@ -26,7 +27,12 @@ Search before you read. Locating code by opening files one at a time burns turns
 
 This is measured, not taste. In the Real-PR re-run (2026-10-29, 12 cells, both arms), agents given grep reached the fix file exactly as fast as before but paid far less for context — targeted greps replaced scroll-through reads — and on the one task that passed, the pass landed earlier: turn 8 → 6 without a spec, turn 8 → 4 with one. Grep to find; read to understand.
 
+## The fix loop (promise → red → edit → green)
+
+When changing code that a spec governs: run the module's emitted tests (`reyu tests <spec>` once, then pytest) alongside the repo suite. A red emitted test names the promise your change broke — read its `# implies:` citation, fix exactly that, rerun. Measured in the V8 experiment (2026-11-01): agents given the emitted fact-tests converted a task six prior runs could not — the reds shrank 3→2→0 across three submits and the hidden suite went green the same turn. When a fix is hard, show the user the loop state (which promises are red) instead of narrating.
+
 ## Rules
+
 
 1. The spec files in `.reyu/specs/` are the source of truth for intent. Before changing code, find the module's spec with grep and read it.
 2. When a spec fails the checker, quote the counterexample to the user in plain words before proposing anything.
