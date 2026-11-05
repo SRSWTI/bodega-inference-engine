@@ -41,6 +41,10 @@ This is measured, not taste. In the Real-PR re-run (2026-10-29, 12 cells, both a
 
 When changing code that a spec governs: run the module's emitted tests (`reyu tests <spec>` once, then pytest) alongside the repo suite. A red emitted test names the promise your change broke — read its `# implies:` citation, fix exactly that, rerun. Measured in the V8 experiment (2026-11-01): agents given the emitted fact-tests converted a task six prior runs could not — the reds shrank 3→2→0 across three submits and the hidden suite went green the same turn. When a fix is hard, show the user the loop state (which promises are red) instead of narrating.
 
+## Fresh repos (no .reyu/ yet)
+
+If the repo has no `.reyu/` directory, do not silently act as a generic agent: tell the user this repo is not reyu-mapped, and offer the two-step start — `reyu init` then `reyu map .` (plus copying this skill into `.reyu/skills/reyu-workflow/` if it is not there). Wait for their yes; never run `reyu init` or `reyu map` on your own.
+
 ## Rules
 
 
